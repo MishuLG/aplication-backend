@@ -1,0 +1,54 @@
+{
+  "users": [
+    {
+      "id": "4b0e",
+      "Uid_users": 1,
+      "id_rols": 2,
+      "first_name": "John",
+      "last_name": "Doe",
+      "DNI": 123456789012,
+      "number_tlf": "+1234567890",
+      "email": "john.doe@example.com",
+      "password": "securepassword123",
+      "date_of_birth": "1990-01-01",
+      "gender": "M",
+      "created_at": "2024-01-01T12:00:00Z",
+      "updated_at": "2024-01-01T12:00:00Z",
+      "status": "active"
+    },
+    {
+      "Uid_users": 2,
+      "email": "Carlos123@example.com",
+      "password": "$2a$10$EEkJNFYA1wCniE.wDTCgM.w/k64b3FXBrhmjsH2uwaOKKtEbKtWaK",
+      "created_at": "2024-12-07T19:25:14.161Z",
+      "updated_at": "2024-12-07T19:25:14.161Z"
+    }
+  ],
+  "students": [
+    {
+      "id": "ee68",
+      "id_student": 1,
+      "id_tutor": "4b0e",
+      "id_section": 101,
+      "id_school_year": 2024,
+      "first_name_student": "Alice",
+      "last_name_student": "Johnson",
+      "date_of_birth_student": "2010-05-15",
+      "health_record": "Allergic to peanuts",
+      "created_at": "2024-01-01T12:00:00Z",
+      "updated_at": "2024-01-01T12:00:00Z"
+    }
+  ],
+  "enrollments": [
+    {
+      "id_subject": 101,
+      "id_class_schedules": 202,
+      "id_student": 1,
+      "id_school_year": 2024,
+      "created_at": "2024-01-01T12:00:00Z",
+      "updated_at": "2024-01-01T12:00:00Z",
+      "status": "active",
+      "id_enrollments": 1
+    }
+  ]
+}
