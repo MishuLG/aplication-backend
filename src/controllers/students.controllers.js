@@ -1,70 +1,74 @@
-import fs from 'fs';
+import {
+    getAllStudentsModel,
+    getStudentByIdModel,
+    createStudentModel,
+    updateStudentByIdModel,
+    deleteStudentByIdModel
+} from '../models/students.model.js';
 
-const readData = () => {
-    const data = fs.readFileSync('./src/db.json', 'utf-8');
-    return JSON.parse(data);
+
+export const getAllStudents = async (req, res) => {
+    try {
+        const students = await getAllStudentsModel();
+        res.json(students);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error fetching students' });
+    }
 };
 
-const writeData = (data) => {
-    fs.writeFileSync('./src/db.json', JSON.stringify(data, null, 2));
-};
 
-export const getAllStudents = (req, res) => {
-    const students = readData().students;
-    res.json(students);
-};
-
-export const getStudentById = (req, res) => {
+export const getStudentById = async (req, res) => {
     const { id } = req.params;
-    const students = readData().students;
-    const student = students.find(s => s.id_student === parseInt(id));
-
-    if (student) {
+    try {
+        const student = await getStudentByIdModel(id);
+        if (!student) {
+            return res.status(404).json({ message: 'Student not found' });
+        }
         res.json(student);
-    } else {
-        res.status(404).send('Student not found');
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error fetching student' });
     }
 };
 
-export const createStudent = (req, res) => {
-    const newStudent = req.body;
-    const data = readData();
-    newStudent.id_student = data.students.length ? Math.max(...data.students.map(s => s.id_student)) + 1 : 1; 
-    data.students.push(newStudent);
-    
-    writeData(data);
-    res.status(201).json(newStudent);
-};
 
-export const deleteStudentById = (req, res) => {
-    const { id } = req.params;
-    let data = readData();
-    const initialLength = data.students.length;
-
-    data.students = data.students.filter(s => s.id_student !== parseInt(id));
-
-    if (data.students.length < initialLength) {
-        writeData(data);
-        res.send('Student deleted');
-    } else {
-        res.status(404).send('Student not found');
+export const createStudent = async (req, res) => {
+    try {
+        const student = await createStudentModel(req.body);
+        res.status(201).json(student);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error creating student' });
     }
 };
 
-export const updateStudentById = (req, res) => {
+
+export const updateStudentById = async (req, res) => {
     const { id } = req.params;
-    const updatedStudent = req.body;
-    
-    let data = readData();
-    const studentIndex = data.students.findIndex(s => s.id_student === parseInt(id));
+    try {
+        const student = await updateStudentByIdModel(id, req.body);
+        if (!student) {
+            return res.status(404).json({ message: 'Student not found' });
+        }
+        res.json(student);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error updating student' });
+    }
+};
 
-    if (studentIndex !== -1) {
-        updatedStudent.id_student = parseInt(id); 
-        data.students[studentIndex] = updatedStudent;
 
-        writeData(data);
-        res.json(updatedStudent);
-    } else {
-        res.status(404).send('Student not found');
+export const deleteStudentById = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const student = await deleteStudentByIdModel(id);
+        if (!student) {
+            return res.status(404).json({ message: 'Student not found' });
+        }
+        res.json({ message: 'Student deleted successfully', student });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error deleting student' });
     }
 };
