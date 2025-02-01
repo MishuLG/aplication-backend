@@ -5,7 +5,11 @@ import { v4 as uuidv4 } from 'uuid';
 
 export const getAllUsersModel = async () => {
     const query = `
-        SELECT uid_users, id_rols, first_name, last_name, dni, number_tlf, email, date_of_birth, gender, status, created_at, updated_at
+        SELECT uid_users, id_rols, first_name, last_name, dni, number_tlf, email, 
+               TO_CHAR(date_of_birth, 'YYYY-MM-DD') AS date_of_birth, 
+               gender, status, 
+               TO_CHAR(created_at, 'YYYY-MM-DD') AS created_at, 
+               TO_CHAR(updated_at, 'YYYY-MM-DD') AS updated_at
         FROM users;
     `;
     const result = await pool.query(query);
@@ -15,7 +19,11 @@ export const getAllUsersModel = async () => {
 
 export const getUserByIdModel = async (id) => {
     const query = `
-        SELECT uid_users, id_rols, first_name, last_name, dni, number_tlf, email, date_of_birth, gender, status, created_at, updated_at
+        SELECT uid_users, id_rols, first_name, last_name, dni, number_tlf, email, 
+               TO_CHAR(date_of_birth, 'YYYY-MM-DD') AS date_of_birth, 
+               gender, status, 
+               TO_CHAR(created_at, 'YYYY-MM-DD') AS created_at, 
+               TO_CHAR(updated_at, 'YYYY-MM-DD') AS updated_at
         FROM users WHERE uid_users = $1;
     `;
     const result = await pool.query(query, [id]);
@@ -24,12 +32,12 @@ export const getUserByIdModel = async (id) => {
 
 
 export const createUserModel = async (userData) => {
-    const { id_rols, first_name, last_name, dni, number_tlf, email, password, date_of_birth, gender, status = true } = userData;
-    const hashedPassword = bcrypt.hashSync(password, 10); 
+    const { id_rols, first_name, last_name, dni, number_tlf, email, password, date_of_birth, gender, status = 'Active' } = userData;
+    const hashedPassword = bcrypt.hashSync(password, 10);
 
     const query = `
         INSERT INTO users (uid_users, id_rols, first_name, last_name, dni, number_tlf, email, password, date_of_birth, gender, created_at, updated_at, status)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW(), $11) RETURNING *;
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_DATE, CURRENT_DATE, $11) RETURNING *;
     `;
     const result = await pool.query(query, [
         generateUid(),
@@ -50,7 +58,10 @@ export const createUserModel = async (userData) => {
 
 
 export const updateUserByIdModel = async (id, userData) => {
-    const { id_rols, first_name, last_name, dni, number_tlf, email, password, date_of_birth, gender } = userData;
+    const { id_rols, first_name, last_name, dni, number_tlf, email, password, date_of_birth, gender, status } = userData;
+
+    const validStatuses = ['active', 'inactive', 'suspended'];
+    const statusValue = validStatuses.includes(status) ? status : null;
 
     const query = `
         UPDATE users SET 
@@ -63,8 +74,9 @@ export const updateUserByIdModel = async (id, userData) => {
             password = COALESCE($7, password),
             date_of_birth = COALESCE($8, date_of_birth),
             gender = COALESCE($9, gender),
-            updated_at = NOW()
-        WHERE uid_users = $10 RETURNING *;
+            status = COALESCE($10::user_status, status),
+            updated_at = CURRENT_DATE
+        WHERE uid_users = $11 RETURNING *;
     `;
     const result = await pool.query(query, [
         id_rols || null,
@@ -73,9 +85,10 @@ export const updateUserByIdModel = async (id, userData) => {
         dni || null,
         number_tlf || null,
         email || null,
-        password ? bcrypt.hashSync(password, 10) : null, 
+        password ? bcrypt.hashSync(password, 10) : null,
         date_of_birth || null,
         gender || null,
+        status || statusValue ? statusValue : null,
         id
     ]);
 
@@ -88,15 +101,15 @@ export const deleteUserByIdModel = async (id) => {
         DELETE FROM users WHERE uid_users = $1 RETURNING *;
     `;
     const result = await pool.query(query, [id]);
-    return result.rows[0]; 
+    return result.rows[0];
 };
 
 
 export const validateProfessorModel = async (uid_users) => {
     const query = `
         UPDATE users 
-        SET status = 'active', updated_at = NOW()
-        WHERE uid_users = $1 AND id_rols = 2 RETURNING *; 
+        SET status = 'active', updated_at = CURRENT_DATE
+        WHERE uid_users = $1 AND id_rols = 2 RETURNING *;
     `;
     const result = await pool.query(query, [uid_users]);
     return result.rows[0];
@@ -105,7 +118,9 @@ export const validateProfessorModel = async (uid_users) => {
 
 export const getUsersByRoleModel = async (id_rols) => {
     const query = `
-        SELECT uid_users, first_name, last_name, email, date_of_birth, gender, status
+        SELECT uid_users, first_name, last_name, email, 
+               TO_CHAR(date_of_birth, 'YYYY-MM-DD') AS date_of_birth, 
+               gender, status
         FROM users WHERE id_rols = $1;
     `;
     const result = await pool.query(query, [id_rols]);

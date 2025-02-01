@@ -21,7 +21,7 @@ export const getAllUsers = async (req, res) => {
 
 
 export const getUserById = async (req, res) => {
-    const { id } = req.params; 
+    const { id } = req.params;
     try {
         const user = await getUserByIdModel(id);
         if (!user) {
@@ -36,9 +36,8 @@ export const getUserById = async (req, res) => {
 
 
 export const createUser = async (req, res) => {
-    const { id_rols, first_name, last_name, dni, number_tlf, email, password, date_of_birth, gender, status = true } = req.body;
+    const { id_rols, first_name, last_name, dni, number_tlf, email, password, date_of_birth, gender, status = 'Active' } = req.body;
 
-    
     if (!id_rols || !first_name || !last_name || !dni || !number_tlf || !email || !password || !date_of_birth || !gender) {
         return res.status(400).json({ message: 'All fields are required' });
     }
@@ -63,6 +62,7 @@ export const createUser = async (req, res) => {
     }
 };
 
+
 export const validateProfessor = async (req, res) => {
     const { uid_users } = req.params;
 
@@ -80,7 +80,7 @@ export const validateProfessor = async (req, res) => {
 
 
 export const getUsersByRole = async (req, res) => {
-    const { role } = req.params; 
+    const { role } = req.params;
 
     try {
         const users = await getUsersByRoleModel(role);
@@ -94,12 +94,7 @@ export const getUsersByRole = async (req, res) => {
 
 export const updateUserById = async (req, res) => {
     const { id } = req.params;
-    const { id_rols, first_name, last_name, dni, number_tlf, email, password, date_of_birth, gender } = req.body;
-
-    
-    if (!id_rols && !first_name && !last_name && !dni && !number_tlf && !email && !password && !date_of_birth && !gender) {
-        return res.status(400).json({ message: 'Missing required fields' });
-    }
+    const { id_rols, first_name, last_name, dni, number_tlf, email, password, date_of_birth, gender, status } = req.body;
 
     try {
         const user = await updateUserByIdModel(id, {
@@ -111,7 +106,8 @@ export const updateUserById = async (req, res) => {
             email,
             password,
             date_of_birth,
-            gender
+            gender,
+            status
         });
         if (!user) {
             return res.status(404).json({ message: 'User not found' });

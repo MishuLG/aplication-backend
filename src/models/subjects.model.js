@@ -1,25 +1,43 @@
 import { pool } from '../database/db.js';
 
-
 export const getAllSubjectsModel = async () => {
-    const query = `SELECT * FROM subjects;`;
+    const query = `
+        SELECT 
+            id_subject, 
+            id_class_schedules, 
+            id_school_year, 
+            name_subject, 
+            description_subject, 
+            TO_CHAR(created_at, 'YYYY-MM-DD') AS created_at, 
+            TO_CHAR(updated_at, 'YYYY-MM-DD') AS updated_at 
+        FROM subjects;
+    `;
     const result = await pool.query(query);
     return result.rows;
 };
 
-
 export const getSubjectByIdModel = async (id) => {
-    const query = `SELECT * FROM subjects WHERE id_subject = $1;`;
+    const query = `
+        SELECT 
+            id_subject, 
+            id_class_schedules, 
+            id_school_year, 
+            name_subject, 
+            description_subject, 
+            TO_CHAR(created_at, 'YYYY-MM-DD') AS created_at, 
+            TO_CHAR(updated_at, 'YYYY-MM-DD') AS updated_at 
+        FROM subjects 
+        WHERE id_subject = $1;
+    `;
     const result = await pool.query(query, [id]);
     return result.rows[0];
 };
-
 
 export const createSubjectModel = async (subjectData) => {
     const { id_class_schedules, id_school_year, name_subject, description_subject } = subjectData;
     const query = `
         INSERT INTO subjects (id_class_schedules, id_school_year, name_subject, description_subject, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, NOW(), NOW()) RETURNING *;
+        VALUES ($1, $2, $3, $4, CURRENT_DATE, CURRENT_DATE) RETURNING *;
     `;
     const result = await pool.query(query, [
         id_class_schedules,
@@ -30,7 +48,6 @@ export const createSubjectModel = async (subjectData) => {
     return result.rows[0];
 };
 
-
 export const updateSubjectByIdModel = async (id, subjectData) => {
     const { id_class_schedules, id_school_year, name_subject, description_subject } = subjectData;
     const query = `
@@ -39,7 +56,7 @@ export const updateSubjectByIdModel = async (id, subjectData) => {
             id_school_year = COALESCE($2, id_school_year),
             name_subject = COALESCE($3, name_subject),
             description_subject = COALESCE($4, description_subject),
-            updated_at = NOW()
+            updated_at = CURRENT_DATE
         WHERE id_subject = $5 RETURNING *;
     `;
     const result = await pool.query(query, [
@@ -51,7 +68,6 @@ export const updateSubjectByIdModel = async (id, subjectData) => {
     ]);
     return result.rows[0];
 };
-
 
 export const deleteSubjectByIdModel = async (id) => {
     const query = `DELETE FROM subjects WHERE id_subject = $1 RETURNING *;`;

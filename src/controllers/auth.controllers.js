@@ -1,7 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { pool } from '../database/db.js'; 
-
+import { pool } from '../database/db.js';
 
 // Login
 export const login = async (req, res) => {
@@ -24,8 +23,8 @@ export const login = async (req, res) => {
             return res.status(401).json({ message: 'Invalid credentials (wrong password)' });
         }
 
-        const token = jwt.sign({ id: user.uid_users }, process.env.JWT_SECRET, { expiresIn: '1h' });
-        res.json({ token });
+        const token = jwt.sign({ id: user.uid_users }, process.env.JWT_SECRET, { expiresIn: '15m' });
+        res.json({ token, user: { id: user.uid_users, email: user.email } });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Internal server error' });
@@ -37,7 +36,7 @@ export const logout = (req, res) => {
     res.json({ message: 'Logged out successfully' });
 };
 
-
+// Request Password Reset
 export const requestPasswordReset = async (req, res) => {
     const { email } = req.body;
 
@@ -54,14 +53,17 @@ export const requestPasswordReset = async (req, res) => {
         }
 
         const resetToken = jwt.sign({ id: user.uid_users }, process.env.JWT_SECRET, { expiresIn: '15m' });
-        res.json({ message: 'Password reset token generated', resetToken });
+        
+        console.log(`Código de recuperación enviado al correo ${email}: ${resetToken}`);
+
+        res.json({ message: 'Password reset token generated. Check your email.', resetToken });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
 
-
+// Reset Password
 export const resetPassword = async (req, res) => {
     const { resetToken, newPassword } = req.body;
 
@@ -91,7 +93,4 @@ export const resetPassword = async (req, res) => {
         console.error(error);
         res.status(500).json({ message: 'Internal server error' });
     }
-
-
 };
-
