@@ -5,7 +5,7 @@ export const getSubjectsTakenByStudentModel = async (id_student) => {
         SELECT 
             st.id_subject_taken,
             st.id_student,
-            s.first_name_student || ' ' || s.last_name_student AS student_name,
+            s.first_name || ' ' || s.last_name AS student_name,
             st.id_subject,
             sub.name_subject,
             sub.description_subject,
@@ -27,7 +27,7 @@ export const getAllSubjectsTakenModel = async () => {
         SELECT 
             st.id_subject_taken,
             st.id_student,
-            s.first_name_student || ' ' || s.last_name_student AS student_name,
+            s.first_name || ' ' || s.last_name AS student_name,
             st.id_subject,
             sub.name_subject,
             sub.description_subject,
@@ -39,7 +39,7 @@ export const getAllSubjectsTakenModel = async () => {
         FROM subjects_taken st
         JOIN students s ON st.id_student = s.id_student
         JOIN subjects sub ON st.id_subject = sub.id_subject
-        JOIN school_year sy ON st.id_school_year = sy.id_school_year;
+        JOIN school_years sy ON st.id_school_year = sy.id_school_year
     `;
     const result = await pool.query(query);
     return result.rows;
@@ -50,7 +50,7 @@ export const getSubjectTakenByIdModel = async (id) => {
         SELECT 
             st.id_subject_taken,
             st.id_student,
-            s.first_name_student || ' ' || s.last_name_student AS student_name,
+            s.first_name || ' ' || s.last_name AS student_name,
             st.id_subject,
             sub.name_subject,
             sub.description_subject,
@@ -62,7 +62,7 @@ export const getSubjectTakenByIdModel = async (id) => {
         FROM subjects_taken st
         JOIN students s ON st.id_student = s.id_student
         JOIN subjects sub ON st.id_subject = sub.id_subject
-        JOIN school_year sy ON st.id_school_year = sy.id_school_year
+        JOIN school_years sy ON st.id_school_year = sy.id_school_year
         WHERE st.id_subject_taken = $1;
     `;
     const result = await pool.query(query, [id]);

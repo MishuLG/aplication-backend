@@ -8,6 +8,8 @@ export const getAllStudentsModel = async () => {
             t.uid_users AS tutor_user_id, 
             s.id_section,
             s.id_school_year,
+            s.first_name AS first_name_student,
+            s.last_name AS last_name_student,
             s.street,
             s.city,
             s.zip_code,
@@ -29,6 +31,8 @@ export const getStudentByIdModel = async (id) => {
             t.uid_users AS tutor_user_id,
             s.id_section,
             s.id_school_year,
+            s.first_name AS first_name_student,
+            s.last_name AS last_name_student,
             s.street,
             s.city,
             s.zip_code,
@@ -43,29 +47,59 @@ export const getStudentByIdModel = async (id) => {
     return result.rows[0];
 };
 
-export const createStudentModel = async (studentData) => {
-    const { 
-        first_name_student, 
+
+export const checkDuplicateStudentModel = async (studentData) => {
+    const {
+        id_tutor,
+        first_name_student,
         last_name_student, 
-        date_of_birth_student, 
-        health_record, 
-        gender, 
-        street, 
-        city, 
-        zip_code, 
-        id_tutor, 
-        id_section, 
-        id_school_year 
+        date_of_birth_student 
     } = studentData;
 
     const query = `
-        INSERT INTO students 
-        (first_name_student, last_name_student, date_of_birth_student, health_record, gender, street, city, zip_code, id_tutor, id_section, id_school_year, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_DATE, CURRENT_DATE) RETURNING *;
+        SELECT id_student 
+        FROM students 
+        WHERE id_tutor = $1              
+          AND first_name = $2            
+          AND last_name = $3           
+          AND date_of_birth_student = $4;           
     `;
+
+    const result = await pool.query(query, [
+        id_tutor,
+        first_name_student,
+        last_name_student, 
+        date_of_birth_student
+    ]);
+
+    return result.rows.length > 0;
+};
+
+
+export const createStudentModel = async (studentData) => {
+        const {
+            first_name_student,
+            last_name_student,  
+            date_of_birth_student, 
+            health_record,
+            gender, 
+            street, city, zip_code, 
+            id_tutor,
+            id_section,
+            id_school_year
+            } = studentData;
+
+        const query = `
+            INSERT INTO students
+            (first_name, last_name, date_of_birth_student, 
+            health_record, gender, street, city, zip_code, id_tutor, id_section,
+            id_school_year, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_DATE,
+            CURRENT_DATE) RETURNING *;
+        `;
     const result = await pool.query(query, [
         first_name_student, 
-        last_name_student, 
+        last_name_student,  
         date_of_birth_student, 
         health_record, 
         gender, 
@@ -96,8 +130,8 @@ export const updateStudentByIdModel = async (id, studentData) => {
 
     const query = `
         UPDATE students SET 
-            first_name_student = COALESCE($1, first_name_student),
-            last_name_student = COALESCE($2, last_name_student),
+            first_name = COALESCE($1, first_name),
+            last_name = COALESCE($2, last_name),
             date_of_birth_student = COALESCE($3, date_of_birth_student),
             health_record = COALESCE($4, health_record),
             gender = COALESCE($5, gender),

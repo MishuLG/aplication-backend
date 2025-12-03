@@ -3,7 +3,8 @@ import {
     getStudentByIdModel,
     createStudentModel,
     updateStudentByIdModel,
-    deleteStudentByIdModel
+    deleteStudentByIdModel,
+    checkDuplicateStudentModel 
 } from '../models/students.model.js';
 
 
@@ -34,12 +35,23 @@ export const getStudentById = async (req, res) => {
 
 
 export const createStudent = async (req, res) => {
+    const studentData = req.body;
+    
     try {
-        const student = await createStudentModel(req.body);
+        const isDuplicate = await checkDuplicateStudentModel(studentData);
+        
+        if (isDuplicate) {
+            return res.status(409).json({ 
+                message: 'Error: El tutor ya tiene registrado un estudiante con este mismo Nombre, Apellido y Fecha de Nacimiento.' 
+            });
+        }
+
+        const student = await createStudentModel(studentData);
         res.status(201).json(student);
+        
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Error creating student' });
+        res.status(500).json({ message: 'Error creating student' }); 
     }
 };
 
