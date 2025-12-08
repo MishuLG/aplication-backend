@@ -1,22 +1,27 @@
-import { Router } from "express";
+import { Router } from 'express';
+import { authenticateToken } from '../middlewares/authenticate.token.js';
 import {
-    createUser,
     getAllUsers,
     getUserById,
-    validateProfessor,
-    deleteUserById,
+    createUser,
     updateUserById,
+    deleteUserById,
+    validateProfessor,
     getUsersByRole
 } from '../controllers/users.controllers.js';
 
 const router = Router();
 
-router.post('/users', createUser);                
-router.get('/users', getAllUsers);                
-router.get('/users/:id', getUserById);            
-router.get('/users/role/:role', getUsersByRole);  
-router.put('/users/validate/:uid_users', validateProfessor); 
-router.put('/users/:id', updateUserById);         
-router.delete('/users/:id', deleteUserById);      
+// Rutas de lectura (puedes protegerlas si deseas)
+router.get('/users', authenticateToken, getAllUsers);
+router.get('/users/:id', authenticateToken, getUserById);
+router.get('/users/role/:role', authenticateToken, getUsersByRole);
+
+// Rutas Críticas Protegidas con Token
+router.post('/users', authenticateToken, createUser);
+router.put('/users/:id', authenticateToken, updateUserById);
+router.delete('/users/:id', authenticateToken, deleteUserById);
+
+router.put('/users/validate-professor/:uid_users', authenticateToken, validateProfessor);
 
 export default router;

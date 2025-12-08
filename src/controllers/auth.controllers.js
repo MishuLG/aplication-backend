@@ -2,12 +2,11 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { pool } from '../database/db.js';
 
-// Login
 export const login = async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-        return res.status(400).json({ message: 'Email and password are required' });
+        return res.status(400).json({ message: 'Email y contraseña requeridos.' });
     }
 
     try {
@@ -15,26 +14,33 @@ export const login = async (req, res) => {
         const user = result.rows[0];
 
         if (!user) {
-            return res.status(401).json({ message: 'Invalid credentials (user not found)' });
+            return res.status(401).json({ message: 'Credenciales inválidas.' });
         }
 
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
-            return res.status(401).json({ message: 'Invalid credentials (wrong password)' });
+            return res.status(401).json({ message: 'Credenciales inválidas.' });
         }
 
-        const token = jwt.sign({ id: user.uid_users }, process.env.JWT_SECRET, { expiresIn: '15m' });
+        // CAMBIO: Token dura 1 hora para permitir actividad continua. 
+        // El frontend manejará el logout por inactividad a los 15 min.
+        const token = jwt.sign(
+            { id: user.uid_users, email: user.email, role: user.id_rols }, 
+            process.env.JWT_SECRET, 
+            { expiresIn: '1h' }
+        );
+        
         res.json({ token, user: { id: user.uid_users, email: user.email } });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Internal server error' });
+        res.status(500).json({ message: 'Error interno del servidor' });
     }
 };
 
-// Logout
 export const logout = (req, res) => {
-    res.json({ message: 'Logged out successfully' });
+    res.json({ message: 'Sesión cerrada correctamente' });
 };
+
 
 // Request Password Reset
 export const requestPasswordReset = async (req, res) => {

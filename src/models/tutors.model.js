@@ -1,13 +1,37 @@
 import { pool } from '../database/db.js';
 
+// --- VALIDACIÓN: Verificar Duplicados ---
+// Revisa si este usuario ya está registrado como tutor
+export const checkDuplicateTutorModel = async (uidUsers, excludeId = null) => {
+    let query = `
+        SELECT id_tutor 
+        FROM tutors 
+        WHERE uid_users = $1
+    `;
+    const params = [uidUsers];
+
+    // Si estamos editando, excluimos el registro actual
+    if (excludeId) {
+        query += ` AND id_tutor != $2`;
+        params.push(excludeId);
+    }
+
+    const result = await pool.query(query, params);
+    return result.rows.length > 0;
+};
+
 export const getAllTutorsModel = async () => {
     const query = `
         SELECT 
             t.id_tutor, 
             t.uid_users,
+            -- Opcional: Traer datos del usuario para mostrar nombres en el backend si fuera necesario
+            -- u.first_name, u.last_name,
             TO_CHAR(t.created_at, 'YYYY-MM-DD') AS created_at,
             TO_CHAR(t.updated_at, 'YYYY-MM-DD') AS updated_at
-        FROM tutors t;
+        FROM tutors t
+        -- JOIN users u ON t.uid_users = u.uid_users
+        ORDER BY t.id_tutor ASC;
     `;
     const result = await pool.query(query);
     return result.rows;
@@ -50,7 +74,7 @@ export const updateTutorByIdModel = async (id, tutorData) => {
 };
 
 export const deleteTutorByIdModel = async (id) => {
-    const query = `DELETE FROM tutors WHERE id_tutor = $1 RETURNING *;`;
+    const query = `DELETE FROM tutors WHERE id_tutor = $1 RETURNING id_tutor;`;
     const result = await pool.query(query, [id]);
     return result.rows[0];
 };

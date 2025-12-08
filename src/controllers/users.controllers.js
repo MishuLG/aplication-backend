@@ -5,47 +5,27 @@ import {
     deleteUserByIdModel,
     updateUserByIdModel,
     getUserByIdModel,
-    getAllUsersModel
+    getAllUsersModel,
+    checkDuplicateUser
 } from '../models/users.model.js';
 
-const parsePostgresUniqueError = (err) => {
-    const result = { field: 'registro', value: null, message: 'Valor duplicado' };
-    if (!err) return result;
+// --- Helpers de Validación ---
+const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+const isValidDNI = (dni) => /^\d+$/.test(dni) && dni.length >= 6;
 
-    // typical err.detail: "Ya existe la llave (dni)=(30651788)."
-    if (typeof err.detail === 'string') {
-        const m = err.detail.match(/\(([^)]+)\)=\(([^)]+)\)/);
-        if (m) {
-            result.field = m[1];
-            result.value = m[2];
-            result.message = `Ya existe ${result.field}: ${result.value}`;
-            return result;
-        }
+// Función exacta para calcular edad
+const calculateAge = (dateString) => {
+    const today = new Date();
+    const birthDate = new Date(dateString);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
     }
-
-    // fallback to constraint name parsing: e.g. users_identification_number_key
-    if (err.constraint && typeof err.constraint === 'string') {
-        const c = err.constraint;
-        if (/identif/i.test(c) || /dni/i.test(c) || /identification/i.test(c)) {
-            result.field = 'dni';
-            result.message = 'DNI duplicado';
-            return result;
-        }
-        // try to extract field name from constraint pattern like table_column_key
-        const parts = c.split('_');
-        if (parts.length >= 3) {
-            // last meaningful part before 'key'
-            const possibleField = parts.slice(1, parts.length - 1).join('_');
-            result.field = possibleField || result.field;
-            result.message = `Valor duplicado en ${result.field}`;
-            return result;
-        }
-    }
-
-    // generic
-    if (err.message) result.message = err.message;
-    return result;
+    return age;
 };
+
+// --- Controladores ---
 
 export const getAllUsers = async (req, res) => {
     try {
@@ -53,7 +33,7 @@ export const getAllUsers = async (req, res) => {
         res.json(users);
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Error retrieving the users' });
+        res.status(500).json({ message: 'Error al obtener usuarios' });
     }
 };
 
@@ -62,143 +42,151 @@ export const getUserById = async (req, res) => {
     try {
         const user = await getUserByIdModel(id);
         if (!user) {
-            return res.status(404).json({ message: 'User not found' });
+            return res.status(404).json({ message: 'Usuario no encontrado' });
         }
         res.json(user);
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Error fetching user' });
+        res.status(500).json({ message: 'Error al obtener usuario' });
     }
 };
 
 export const createUser = async (req, res) => {
-    const { id_rols, first_name, last_name, dni, number_tlf, email, password, date_of_birth, gender, status = 'Active' } = req.body;
+    const { id_rols, first_name, last_name, dni, number_tlf, email, password, date_of_birth, gender } = req.body;
 
-    if (!id_rols || !first_name || !last_name || !dni || !number_tlf || !email || !password || !date_of_birth || !gender) {
-        return res.status(400).json({ message: 'All fields are required' });
+    // 1. Validar campos obligatorios
+    if (!id_rols || !first_name || !last_name || !dni || !email || !password || !date_of_birth || !gender) {
+        return res.status(400).json({ message: 'Todos los campos son obligatorios.' });
     }
 
-    try {
-        const user = await createUserModel({
-            id_rols,
-            first_name,
-            last_name,
-            dni,
-            number_tlf,
-            email,
-            password,
-            date_of_birth,
-            gender,
-            status
-        });
-        res.status(201).json({ message: 'User created successfully', user });
-    } catch (error) {
-        console.error(error);
+    // 2. Validaciones de Edad y Fecha
+    const birthDate = new Date(date_of_birth);
+    const today = new Date();
+    
+    // Normalizar horas para comparar solo fechas (evita errores por hora del servidor)
+    today.setHours(0,0,0,0);
+    birthDate.setHours(0,0,0,0);
 
-        // Postgres unique violation
-        if (error && error.code === '23505') {
-            const parsed = parsePostgresUniqueError(error);
-            const errors = {};
-            errors[parsed.field] = parsed.value ? `Ya existe ${parsed.value}` : parsed.message;
-            return res.status(409).json({ message: parsed.message, errors });
-        }
-
-        // forward validation-style errors from model (if any)
-        if (error && error.status && error.message) {
-            return res.status(error.status).json({ message: error.message, errors: error.errors || null });
-        }
-
-        res.status(500).json({ message: 'Error creating user' });
+    if (birthDate > today) {
+        return res.status(400).json({ message: 'La fecha de nacimiento no puede ser futura.' });
     }
-};
-
-export const validateProfessor = async (req, res) => {
-    const { uid_users } = req.params;
-
-    try {
-        const user = await validateProfessorModel(uid_users);
-        if (!user) {
-            return res.status(404).json({ message: 'User not found or already validated' });
-        }
-        res.json({ message: 'Professor validated successfully', user });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Error validating professor' });
+    
+    if (calculateAge(date_of_birth) < 21) {
+        return res.status(400).json({ message: 'El usuario debe ser mayor de 21 años para registrarse.' });
     }
-};
 
-export const getUsersByRole = async (req, res) => {
-    const { role } = req.params;
+    // 3. Validaciones de Formato
+    if (!isValidEmail(email)) return res.status(400).json({ message: 'Email inválido.' });
+    if (!isValidDNI(dni)) return res.status(400).json({ message: 'DNI inválido (solo números).' });
+    if (password.length < 6) return res.status(400).json({ message: 'La contraseña debe tener al menos 6 caracteres.' });
 
     try {
-        const users = await getUsersByRoleModel(role);
-        res.json(users);
+        // 4. Validar Duplicados
+        const isDuplicate = await checkDuplicateUser(email, dni);
+        if (isDuplicate) return res.status(409).json({ message: 'El Email o DNI ya están registrados.' });
+
+        const user = await createUserModel(req.body);
+        res.status(201).json({ message: 'Usuario creado exitosamente', user });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Error fetching users by role' });
+        res.status(500).json({ message: 'Error interno al crear usuario', error: error.message });
     }
 };
 
 export const updateUserById = async (req, res) => {
     const { id } = req.params;
-    const { id_rols, first_name, last_name, dni, number_tlf, email, password, date_of_birth, gender, status } = req.body;
+    const { id_rols, first_name, last_name, dni, number_tlf, email, password, date_of_birth, gender } = req.body;
+
+    // 1. Validar campos obligatorios mínimos
+    if (!id_rols || !first_name || !last_name || !dni || !email || !date_of_birth) {
+        return res.status(400).json({ message: 'Faltan campos obligatorios para actualizar.' });
+    }
+
+    // 2. Validaciones de Edad y Fecha
+    const birthDate = new Date(date_of_birth);
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    birthDate.setHours(0,0,0,0);
+
+    if (birthDate > today) {
+        return res.status(400).json({ message: 'La fecha de nacimiento no puede ser futura.' });
+    }
+    if (calculateAge(date_of_birth) < 21) {
+        return res.status(400).json({ message: 'El usuario debe ser mayor de 21 años.' });
+    }
+
+    // 3. Validaciones de Formato
+    if (!isValidEmail(email)) return res.status(400).json({ message: 'Email inválido.' });
+    if (!isValidDNI(dni)) return res.status(400).json({ message: 'DNI inválido.' });
+    
+    // Validar contraseña solo si se envía
+    if (password && password.trim() !== '') {
+        if (password.length < 6) return res.status(400).json({ message: 'La nueva contraseña es muy corta.' });
+    }
 
     try {
-        const user = await updateUserByIdModel(id, {
-            id_rols,
-            first_name,
-            last_name,
-            dni,
-            number_tlf,
-            email,
-            password,
-            date_of_birth,
-            gender,
-            status
-        });
-        if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-        }
-        res.json({ message: 'User updated successfully', user });
+        // 4. Validar Duplicados (excluyendo al usuario actual)
+        const isDuplicate = await checkDuplicateUser(email, dni, id);
+        if (isDuplicate) return res.status(409).json({ message: 'El Email o DNI pertenecen a otro usuario.' });
+
+        const user = await updateUserByIdModel(id, req.body);
+        if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+        res.json({ message: 'Usuario actualizado correctamente', user });
     } catch (error) {
         console.error(error);
-
-        if (error && error.code === '23505') {
-            const parsed = parsePostgresUniqueError(error);
-            const errors = {};
-            errors[parsed.field] = parsed.value ? `Ya existe ${parsed.value}` : parsed.message;
-            return res.status(409).json({ message: parsed.message, errors });
-        }
-
-        if (error && error.status && error.message) {
-            return res.status(error.status).json({ message: error.message, errors: error.errors || null });
-        }
-
-        res.status(500).json({ message: 'Error updating user' });
+        res.status(500).json({ message: 'Error al actualizar usuario' });
     }
 };
 
 export const deleteUserById = async (req, res) => {
     const { id } = req.params;
 
+    // --- PROTECCIÓN: No auto-eliminarse ---
+    // Verificamos si el usuario intenta borrarse a sí mismo comparando con el token (req.user)
+    if (req.user && req.user.id === id) {
+        return res.status(403).json({ message: 'No puedes eliminar tu propia cuenta mientras estás conectado.' });
+    }
+
     try {
         const user = await deleteUserByIdModel(id);
-        if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-        }
-        res.json({ message: 'User deleted successfully', user });
+        if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+        res.json({ message: 'Usuario eliminado correctamente', user });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Error deleting user' });
+        if (error.code === '23503') return res.status(409).json({ message: 'No se puede eliminar: El usuario tiene roles o datos asociados.' });
+        res.status(500).json({ message: 'Error al eliminar usuario' });
     }
 };
 
+// Controladores adicionales
+export const validateProfessor = async (req, res) => {
+    const { uid_users } = req.params;
+    try {
+        const user = await validateProfessorModel(uid_users);
+        if (!user) return res.status(404).json({ message: 'Profesor no encontrado' });
+        res.json({ message: 'Profesor validado', user });
+    } catch (error) {
+        res.status(500).json({ message: 'Error al validar profesor' });
+    }
+};
+
+export const getUsersByRole = async (req, res) => {
+    const { role } = req.params;
+    try {
+        const users = await getUsersByRoleModel(role);
+        res.json(users);
+    } catch (error) {
+        res.status(500).json({ message: 'Error al obtener usuarios por rol' });
+    }
+};
+
+// Exportar todo
 export default {
     getAllUsers,
     getUserById,
     createUser,
-    validateProfessor,
-    getUsersByRole,
     updateUserById,
-    deleteUserById
+    deleteUserById,
+    validateProfessor,
+    getUsersByRole
 };
