@@ -1,20 +1,18 @@
 import { Router } from "express";
 import { 
   getAllEvaluations, 
-  getEvaluationsWithLeftJoin, 
-  getEvaluationsWithRightJoin, 
+  getEvaluationById, 
   createEvaluation, 
-  updateEvaluation, 
-  deleteEvaluation 
+  updateEvaluationById, 
+  deleteEvaluationById 
 } from "../controllers/evaluations.controller.js";
 
 const router = Router();
 
 router.get("/evaluations", getAllEvaluations);
-router.get("/evaluations/left-join", getEvaluationsWithLeftJoin);
-router.get("/evaluations/right-join", getEvaluationsWithRightJoin);
+router.get("/evaluations/:id", getEvaluationById);
 router.post("/evaluations", createEvaluation);
-router.put("/evaluations/:id", updateEvaluation);
-router.delete("/evaluations/:id", deleteEvaluation);
+router.put("/evaluations/:id", updateEvaluationById);
+router.delete("/evaluations/:id", deleteEvaluationById);
 
 export default router;

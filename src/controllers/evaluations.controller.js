@@ -1,111 +1,120 @@
-import Evaluation from "../models/Sequelize/evaluations.model.js";
-import Student from "../models/Sequelize/students.model.js";
-import Subject from "../models/Sequelize/subjects.model.js";
-import ClassSchedule from "../models/Sequelize/classSchedules.model.js";
-import sequelize from "../database/sequelize.js";
+import {
+    getAllEvaluationsModel,
+    getEvaluationByIdModel,
+    createEvaluationModel,
+    updateEvaluationByIdModel,
+    deleteEvaluationByIdModel,
+    checkDuplicateEvaluationModel
+} from '../models/evaluations.model.js';
 
+const isFutureDate = (dateString) => {
+    const inputDate = new Date(dateString);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return inputDate > today;
+};
 
 export const getAllEvaluations = async (req, res) => {
-  try {
-    const evaluations = await Evaluation.findAll({
-      include: [
-        { model: Student, attributes: ["first_name_student", "last_name_student"] },
-        { model: Subject, attributes: ["name_subject"] },
-        { model: ClassSchedule, attributes: ["start_time", "end_time"] } 
-      ]
-    });
-
-    const formattedEvaluations = evaluations.map(evaluation => ({
-      ...evaluation.get({ plain: true }),
-      created_at: evaluation.created_at.toISOString().split('T')[0],
-      updated_at: evaluation.updated_at.toISOString().split('T')[0]
-    }));
-
-    res.json(formattedEvaluations);
-  } catch (error) {
-    console.error("Error fetching evaluations:", error);
-    res.status(500).json({ message: "Error fetching evaluations" });
-  }
+    try {
+        const evaluations = await getAllEvaluationsModel();
+        res.json(evaluations);
+    } catch (error) {
+        console.error("Error getAllEvaluations:", error);
+        res.status(500).json({ message: 'Error al obtener evaluaciones', error: error.message });
+    }
 };
 
+export const getEvaluationById = async (req, res) => {
+    try {
+        const evaluation = await getEvaluationByIdModel(req.params.id);
+        if (!evaluation) return res.status(404).json({ message: 'Evaluación no encontrada' });
+        res.json(evaluation);
+    } catch (error) {
+        res.status(500).json({ message: 'Error al obtener evaluación' });
+    }
+};
 
 export const createEvaluation = async (req, res) => {
-  try {
-    const newEvaluation = await Evaluation.create(req.body);
-    res.status(201).json(newEvaluation);
-  } catch (error) {
-    console.error("Error creating evaluation:", error);
-    res.status(500).json({ message: "Error creating evaluation" });
-  }
-};
+    const { 
+        id_student, id_subject, id_class_schedules, 
+        evaluation_date, evaluation_type, score, max_score, total_grade, observations 
+    } = req.body;
 
-
-export const updateEvaluation = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const [updated] = await Evaluation.update(req.body, {
-      where: { id_evaluations: id }
-    });
-    if (updated) {
-      const updatedEvaluation = await Evaluation.findOne({ where: { id_evaluations: id } });
-      res.status(200).json(updatedEvaluation);
-    } else {
-      res.status(404).json({ message: "Evaluation not found" });
+    if (!id_student || !id_subject || !id_class_schedules || !evaluation_date || !evaluation_type || score === undefined || max_score === undefined) {
+        return res.status(400).json({ message: 'Faltan campos obligatorios. Verifique Horario y Tipo.' });
     }
-  } catch (error) {
-    console.error("Error updating evaluation:", error);
-    res.status(500).json({ message: "Error updating evaluation" });
-  }
-};
 
-
-export const deleteEvaluation = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const deleted = await Evaluation.destroy({
-      where: { id_evaluations: id }
-    });
-    if (deleted) {
-      res.status(204).json({ message: "Evaluation deleted" });
-    } else {
-      res.status(404).json({ message: "Evaluation not found" });
+    if (Number(score) > Number(max_score)) {
+        return res.status(400).json({ message: 'La nota no puede ser mayor a la nota máxima.' });
     }
-  } catch (error) {
-    console.error("Error deleting evaluation:", error);
-    res.status(500).json({ message: "Error deleting evaluation" });
-  }
+    if (isFutureDate(evaluation_date)) {
+        return res.status(400).json({ message: 'La fecha no puede ser futura.' });
+    }
+
+    try {
+        const isDuplicate = await checkDuplicateEvaluationModel(id_student, id_subject, evaluation_type, evaluation_date);
+        if (isDuplicate) {
+            return res.status(409).json({ message: 'Ya existe una evaluación igual para este estudiante y fecha.' });
+        }
+
+        const newEval = await createEvaluationModel({
+            id_student, id_subject, id_class_schedules, 
+            evaluation_date, evaluation_type, score, max_score, total_grade, observations
+        });
+        res.status(201).json(newEval);
+    } catch (error) {
+        console.error("Error createEvaluation:", error);
+        // Manejo de errores específicos de BD
+        if (error.code === '23503') return res.status(400).json({ message: 'Estudiante, Materia u Horario no válidos.' });
+        if (error.code === '23502') return res.status(400).json({ message: 'Faltan datos obligatorios (NULL en BD).' });
+        if (error.code === '23514') return res.status(400).json({ message: 'El Tipo de Evaluación no es válido para la base de datos.' });
+        
+        res.status(500).json({ message: 'Error interno al crear evaluación', error: error.message });
+    }
 };
 
+export const updateEvaluationById = async (req, res) => {
+    const { id } = req.params;
+    const { 
+        id_student, id_subject, id_class_schedules, 
+        evaluation_date, evaluation_type, score, max_score, total_grade, observations 
+    } = req.body;
 
-export const getEvaluationsWithLeftJoin = async (req, res) => {
-  try {
-    const evaluations = await sequelize.query(`
-      SELECT e.*, s.first_name_student, s.last_name_student, sub.name_subject
-      FROM evaluations e
-      LEFT JOIN students s ON e.id_student = s.id_student
-      LEFT JOIN subjects sub ON e.id_subject = sub.id_subject
-    `, { type: sequelize.QueryTypes.SELECT });
+    if (!id_student || !id_subject || !id_class_schedules || !evaluation_date || !evaluation_type) {
+        return res.status(400).json({ message: 'Faltan campos obligatorios.' });
+    }
 
-    res.json(evaluations);
-  } catch (error) {
-    console.error("Error fetching evaluations with LEFT JOIN:", error);
-    res.status(500).json({ message: "Error fetching evaluations" });
-  }
+    if (parseFloat(score) > parseFloat(max_score)) {
+        return res.status(400).json({ message: 'La nota no puede superar la máxima.' });
+    }
+
+    try {
+        const isDuplicate = await checkDuplicateEvaluationModel(id_student, id_subject, evaluation_type, evaluation_date, id);
+        if (isDuplicate) {
+            return res.status(409).json({ message: 'Conflicto: Ya existe otra evaluación idéntica.' });
+        }
+
+        const updatedEval = await updateEvaluationByIdModel(id, {
+            id_student, id_subject, id_class_schedules, 
+            evaluation_date, evaluation_type, score, max_score, total_grade, observations
+        });
+
+        if (!updatedEval) return res.status(404).json({ message: 'Evaluación no encontrada' });
+        res.json(updatedEval);
+    } catch (error) {
+        console.error("Error updateEvaluationById:", error);
+        if (error.code === '23514') return res.status(400).json({ message: 'Tipo de Evaluación inválido.' });
+        res.status(500).json({ message: 'Error al actualizar', error: error.message });
+    }
 };
 
-
-export const getEvaluationsWithRightJoin = async (req, res) => {
-  try {
-    const evaluations = await sequelize.query(`
-      SELECT e.*, sub.name_subject, s.first_name_student, s.last_name_student
-      FROM subjects sub
-      RIGHT JOIN evaluations e ON sub.id_subject = e.id_subject
-      RIGHT JOIN students s ON e.id_student = s.id_student
-    `, { type: sequelize.QueryTypes.SELECT });
-
-    res.json(evaluations);
-  } catch (error) {
-    console.error("Error fetching evaluations with RIGHT JOIN:", error);
-    res.status(500).json({ message: "Error fetching evaluations" });
-  }
+export const deleteEvaluationById = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const deleted = await deleteEvaluationByIdModel(id);
+        if (!deleted) return res.status(404).json({ message: 'Evaluación no encontrada' });
+        res.json({ message: 'Evaluación eliminada correctamente' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error al eliminar' });
+    }
 };
