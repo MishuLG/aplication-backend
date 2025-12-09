@@ -3,27 +3,9 @@ import {
     getSchoolYearByIdModel,
     createSchoolYearModel,
     updateSchoolYearByIdModel,
-    deleteSchoolYearByIdModel
+    deleteSchoolYearByIdModel,
+    checkDuplicateSchoolYearModel
 } from '../models/schoolYear.model.js';
-
-const parsePostgresUniqueError = (err) => {
-    const result = { field: 'registro', value: null, message: 'Valor duplicado' };
-    if (!err) return result;
-
-    if (typeof err.detail === 'string') {
-        const m = err.detail.match(/\(([^)]+)\)=\(([^)]+)\)/);
-        if (m) {
-            result.field = m[1];
-            result.value = m[2];
-            result.message = `Ya existe un registro con ${result.field}: ${result.value}`;
-            return result;
-        }
-    }
-
-    if (err.message) result.message = err.message;
-    return result;
-};
-
 
 export const getAllSchoolYears = async (req, res) => {
     try {
@@ -31,7 +13,7 @@ export const getAllSchoolYears = async (req, res) => {
         res.json(schoolYears);
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Error retrieving school years' });
+        res.status(500).json({ message: 'Error al obtener años escolares' });
     }
 };
 
@@ -39,87 +21,63 @@ export const getSchoolYearById = async (req, res) => {
     const { id } = req.params;
     try {
         const schoolYear = await getSchoolYearByIdModel(id);
-        if (!schoolYear) {
-            return res.status(404).json({ message: 'School year not found' });
-        }
+        if (!schoolYear) return res.status(404).json({ message: 'Año escolar no encontrado' });
         res.json(schoolYear);
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Error retrieving school year' });
+        res.status(500).json({ message: 'Error al obtener año escolar' });
     }
 };
 
 export const createSchoolYear = async (req, res) => {
     const { school_grade, start_year, end_of_year, number_of_school_days, scheduled_vacation, special_events, school_year_status } = req.body;
-  
+
     if (!school_grade || !start_year || !end_of_year || !number_of_school_days || !school_year_status) {
-      return res.status(400).json({ message: 'Todos los campos obligatorios deben estar completos.' });
+        return res.status(400).json({ message: 'Faltan campos obligatorios.' });
     }
-  
+
+    const statusBoolean = school_year_status === 'active' || school_year_status === true;
+
     try {
-      const newSchoolYear = await createSchoolYearModel({
-        school_grade, start_year, end_of_year, number_of_school_days, scheduled_vacation, special_events, school_year_status
-      });
-  
-      res.status(201).json({ message: 'School year created successfully', schoolYear: newSchoolYear });
+        // --- VALIDACIÓN ---
+        const isDuplicate = await checkDuplicateSchoolYearModel(school_grade, start_year, end_of_year);
+        if (isDuplicate) return res.status(409).json({ message: 'Ya existe un año escolar con el mismo grado y fechas.' });
+
+        const newSchoolYear = await createSchoolYearModel({ ...req.body, school_year_status: statusBoolean });
+        res.status(201).json(newSchoolYear);
     } catch (error) {
-      console.error(error);
-
-      if (error && error.code === '23505') {
-          const parsed = parsePostgresUniqueError(error);
-          return res.status(409).json({ 
-              message: parsed.message, 
-              errors: { [parsed.field]: parsed.message } 
-          });
-      }
-
-      res.status(500).json({ message: error.message || 'Error creating school year' });
+        console.error(error);
+        res.status(500).json({ message: 'Error interno al crear año escolar' });
     }
-  };
+};
 
 export const updateSchoolYearById = async (req, res) => {
     const { id } = req.params;
-    const { school_grade, start_year, end_of_year, number_of_school_days, scheduled_vacation, special_events, school_year_status } = req.body;
+    const { school_grade, start_year, end_of_year, school_year_status } = req.body;
+
+    const statusBoolean = school_year_status === 'active' || school_year_status === true;
 
     try {
-        const updatedSchoolYear = await updateSchoolYearByIdModel(id, {
-            school_grade, start_year, end_of_year, number_of_school_days, scheduled_vacation, special_events, school_year_status
-        });
+        const isDuplicate = await checkDuplicateSchoolYearModel(school_grade, start_year, end_of_year, id);
+        if (isDuplicate) return res.status(409).json({ message: 'Ya existe un año escolar con el mismo grado y fechas.' });
 
-        if (!updatedSchoolYear) {
-            return res.status(404).json({ message: 'School year not found' });
-        }
-
-        res.json({ message: 'School year updated successfully', schoolYear: updatedSchoolYear });
+        const updatedSchoolYear = await updateSchoolYearByIdModel(id, { ...req.body, school_year_status: statusBoolean });
+        if (!updatedSchoolYear) return res.status(404).json({ message: 'Año escolar no encontrado' });
+        res.json(updatedSchoolYear);
     } catch (error) {
         console.error(error);
-
-        if (error && error.code === '23505') {
-            const parsed = parsePostgresUniqueError(error);
-            return res.status(409).json({ 
-                message: parsed.message, 
-                errors: { [parsed.field]: parsed.message }
-            });
-        }
-
-        res.status(500).json({ message: 'Error updating school year' });
+        res.status(500).json({ message: 'Error al actualizar año escolar' });
     }
 };
 
 export const deleteSchoolYearById = async (req, res) => {
     const { id } = req.params;
-
     try {
-        const deletedSchoolYear = await deleteSchoolYearByIdModel(id);
-        if (!deletedSchoolYear) {
-            return res.status(404).json({ message: 'School year not found' });
-        }
-        res.json({ message: 'School year deleted successfully', schoolYear: deletedSchoolYear });
+        const deleted = await deleteSchoolYearByIdModel(id);
+        if (!deleted) return res.status(404).json({ message: 'Año escolar no encontrado' });
+        res.json({ message: 'Año escolar eliminado correctamente' });
     } catch (error) {
         console.error(error);
-        if (error && error.code === '23503') {
-            return res.status(409).json({ message: 'No se puede eliminar: El año escolar tiene registros asociados (alumnos, secciones, etc).' });
-        }
-        res.status(500).json({ message: 'Error deleting school year' });
+        if (error.code === '23503') return res.status(409).json({ message: 'No se puede eliminar: Tiene registros asociados.' });
+        res.status(500).json({ message: 'Error al eliminar año escolar' });
     }
 };
