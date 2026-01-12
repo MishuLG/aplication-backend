@@ -12,8 +12,8 @@ export const getAllTutors = async (req, res) => {
         const tutors = await getAllTutorsModel();
         res.json(tutors);
     } catch (error) {
-        console.error("Error getAllTutors:", error);
-        res.status(500).json({ message: 'Error al obtener tutores' });
+        console.error(error);
+        res.status(500).json({ message: 'Error al obtener la lista de tutores' });
     }
 };
 
@@ -26,7 +26,7 @@ export const getTutorById = async (req, res) => {
         }
         res.json(tutor);
     } catch (error) {
-        console.error("Error getTutorById:", error);
+        console.error(error);
         res.status(500).json({ message: 'Error al obtener el tutor' });
     }
 };
@@ -34,25 +34,22 @@ export const getTutorById = async (req, res) => {
 export const createTutor = async (req, res) => {
     const { uid_users } = req.body;
 
-    // 1. Validación de campos
-    if (!uid_users) {
-        return res.status(400).json({ message: 'Debe seleccionar un usuario válido.' });
+
+    if (!uid_users || uid_users.trim() === '') {
+        return res.status(400).json({ message: 'Error: Debe seleccionar un usuario válido para asignarlo como tutor.' });
     }
 
     try {
-        // 2. Validación de duplicados
         const isDuplicate = await checkDuplicateTutorModel(uid_users);
         if (isDuplicate) {
-            return res.status(409).json({ message: 'Este usuario ya está registrado como tutor.' });
+            return res.status(409).json({ message: 'Conflicto: Este usuario ya está registrado como tutor.' });
         }
 
-        const tutor = await createTutorModel({ uid_users });
-        res.status(201).json(tutor);
+        const newTutor = await createTutorModel({ uid_users });
+        res.status(201).json({ message: 'Tutor registrado exitosamente', newTutor });
     } catch (error) {
-        console.error("Error createTutor:", error);
-        // Error de llave foránea (usuario no existe)
-        if (error.code === '23503') return res.status(400).json({ message: 'El usuario seleccionado no existe en el sistema.' });
-        res.status(500).json({ message: 'Error al crear el tutor', error: error.message });
+        console.error(error);
+        res.status(500).json({ message: 'Error interno al crear el tutor' });
     }
 };
 
@@ -60,41 +57,38 @@ export const updateTutorById = async (req, res) => {
     const { id } = req.params;
     const { uid_users } = req.body;
 
+
     if (!uid_users) {
-        return res.status(400).json({ message: 'Debe seleccionar un usuario.' });
+        return res.status(400).json({ message: 'Error: El campo usuario es obligatorio.' });
     }
 
     try {
-        // 3. Validación de duplicados (excluyendo el actual)
         const isDuplicate = await checkDuplicateTutorModel(uid_users, id);
         if (isDuplicate) {
-            return res.status(409).json({ message: 'Este usuario ya está asignado a otro perfil de tutor.' });
+            return res.status(409).json({ message: 'Conflicto: El usuario seleccionado ya pertenece a otro tutor.' });
         }
 
-        const tutor = await updateTutorByIdModel(id, { uid_users });
-        if (!tutor) {
-            return res.status(404).json({ message: 'Tutor no encontrado' });
+        const updatedTutor = await updateTutorByIdModel(id, { uid_users });
+        if (!updatedTutor) {
+            return res.status(404).json({ message: 'Tutor no encontrado para actualizar' });
         }
-        res.json(tutor);
+        res.json({ message: 'Tutor actualizado correctamente', updatedTutor });
     } catch (error) {
-        console.error("Error updateTutorById:", error);
-        if (error.code === '23503') return res.status(400).json({ message: 'El usuario seleccionado no existe.' });
-        res.status(500).json({ message: 'Error al actualizar el tutor' });
+        console.error(error);
+        res.status(500).json({ message: 'Error interno al actualizar el tutor' });
     }
 };
 
 export const deleteTutorById = async (req, res) => {
     const { id } = req.params;
     try {
-        const tutor = await deleteTutorByIdModel(id);
-        if (!tutor) {
+        const deletedTutor = await deleteTutorByIdModel(id);
+        if (!deletedTutor) {
             return res.status(404).json({ message: 'Tutor no encontrado' });
         }
-        res.json({ message: 'Tutor eliminado correctamente' });
+        res.json({ message: 'Tutor eliminado correctamente', deletedTutor });
     } catch (error) {
-        console.error("Error deleteTutorById:", error);
-        // Error si el tutor tiene estudiantes asignados
-        if (error.code === '23503') return res.status(409).json({ message: 'No se puede eliminar: El tutor tiene estudiantes a su cargo.' });
-        res.status(500).json({ message: 'Error al eliminar el tutor' });
+        console.error(error);
+        res.status(500).json({ message: 'Error al eliminar el tutor. Puede tener estudiantes asociados.' });
     }
 };

@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { pool } from '../database/db.js';
 
+// --- LOGIN (Sin cambios) ---
 export const login = async (req, res) => {
     const { email, password } = req.body;
 
@@ -22,18 +23,97 @@ export const login = async (req, res) => {
             return res.status(401).json({ message: 'Credenciales inválidas.' });
         }
 
-        // CAMBIO: Token dura 1 hora para permitir actividad continua. 
-        // El frontend manejará el logout por inactividad a los 15 min.
         const token = jwt.sign(
             { id: user.uid_users, email: user.email, role: user.id_rols }, 
             process.env.JWT_SECRET, 
             { expiresIn: '1h' }
         );
         
-        res.json({ token, user: { id: user.uid_users, email: user.email } });
+        res.json({ token, user: { id: user.uid_users, email: user.email, name: user.first_name } });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Error interno del servidor' });
+    }
+};
+
+// --- OBTENER PERFIL ---
+export const getProfile = async (req, res) => {
+    const userId = req.user.id; 
+
+    try {
+        const query = `
+            SELECT 
+                uid_users, 
+                first_name, 
+                last_name, 
+                dni, 
+                number_tlf, 
+                email, 
+                TO_CHAR(date_of_birth, 'YYYY-MM-DD') as date_of_birth,
+                gender,
+                id_rols,
+                profile_pic -- Traemos la foto guardada
+            FROM users 
+            WHERE uid_users = $1
+        `;
+        const result = await pool.query(query, [userId]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'Usuario no encontrado.' });
+        }
+
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error al obtener perfil.' });
+    }
+};
+
+// --- ACTUALIZAR PERFIL ---
+export const updateProfile = async (req, res) => {
+    const userId = req.user.id; 
+    const { first_name, last_name, number_tlf, password, profile_pic } = req.body;
+
+    if (!first_name || !last_name || !number_tlf) {
+        return res.status(400).json({ message: 'Nombre, apellido y teléfono son obligatorios.' });
+    }
+
+    try {
+        let query;
+        let params;
+
+        if (password && password.trim() !== "") {
+            const hashedPassword = await bcrypt.hash(password, 10);
+            query = `
+                UPDATE users SET 
+                    first_name = $1, 
+                    last_name = $2, 
+                    number_tlf = $3,
+                    password = $4,
+                    profile_pic = COALESCE($5, profile_pic),
+                    updated_at = CURRENT_DATE
+                WHERE uid_users = $6 RETURNING first_name, last_name, email, profile_pic;
+            `;
+            params = [first_name, last_name, number_tlf, hashedPassword, profile_pic, userId];
+        } else {
+            query = `
+                UPDATE users SET 
+                    first_name = $1, 
+                    last_name = $2, 
+                    number_tlf = $3,
+                    profile_pic = COALESCE($4, profile_pic),
+                    updated_at = CURRENT_DATE
+                WHERE uid_users = $5 RETURNING first_name, last_name, email, profile_pic;
+            `;
+            params = [first_name, last_name, number_tlf, profile_pic, userId];
+        }
+
+        const result = await pool.query(query, params);
+        res.json({ message: 'Perfil actualizado correctamente.', user: result.rows[0] });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error al actualizar perfil.' });
     }
 };
 
@@ -41,8 +121,7 @@ export const logout = (req, res) => {
     res.json({ message: 'Sesión cerrada correctamente' });
 };
 
-
-// Request Password Reset
+// --- RECUPERACIÓN DE CONTRASEÑA ---
 export const requestPasswordReset = async (req, res) => {
     const { email } = req.body;
 
@@ -69,7 +148,6 @@ export const requestPasswordReset = async (req, res) => {
     }
 };
 
-// Reset Password
 export const resetPassword = async (req, res) => {
     const { resetToken, newPassword } = req.body;
 
