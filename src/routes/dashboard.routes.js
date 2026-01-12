@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { getTotalUsers, getStudentRegistrationsByDay } from '../controllers/dashboard.controller.js';
+import { getDashboardStats } from '../controllers/dashboard.controller.js';
+import { verifyToken } from '../middlewares/auth.middleware.js'; 
 
 const router = Router();
 
-router.get('/total_users', getTotalUsers);
-router.get('/student_registrations', getStudentRegistrationsByDay);
+router.get('/dashboard', verifyToken, getDashboardStats);
 
 export default router;

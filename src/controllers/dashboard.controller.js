@@ -1,21 +1,36 @@
-import { getTotalUsersModel, getStudentRegistrationsByDayModel } from '../models/dashboard.model.js';
+import { 
+    getTotalStudentsModel, 
+    getTotalUsersModel, 
+    getTotalEvaluationsModel,
+    getStudentRegistrationsGraphModel
+} from '../models/dashboard.model.js';
 
-export const getTotalUsers = async (req, res) => {
+export const getDashboardStats = async (req, res) => {
     try {
-        const totalUsers = await getTotalUsersModel();
-        res.json({ totalUsers });
-    } catch (error) {
-        console.error('Error fetching total users:', error);
-        res.status(500).json({ message: 'Error retrieving total users' });
-    }
-};
+        console.log("⚡ Calculando datos del Dashboard...");
 
-export const getStudentRegistrationsByDay = async (req, res) => {
-    try {
-        const registrations = await getStudentRegistrationsByDayModel();
-        res.json(registrations);
+        const [students, users, evaluations, registrations] = await Promise.all([
+            getTotalStudentsModel(),
+            getTotalUsersModel(),
+            getTotalEvaluationsModel(),
+            getStudentRegistrationsGraphModel()
+        ]);
+
+        res.json({
+            kpi: {
+                students: students,
+                users: users,
+                evaluations: evaluations,
+                attendance: "0%" 
+            },
+            charts: {
+                registrations: registrations,
+                attendance: [] 
+            }
+        });
+
     } catch (error) {
-        console.error('Error fetching student registrations:', error);
-        res.status(500).json({ message: 'Error retrieving student registrations' });
+        console.error("Error en Dashboard Controller:", error);
+        res.status(500).json({ message: 'Error interno del servidor' });
     }
 };

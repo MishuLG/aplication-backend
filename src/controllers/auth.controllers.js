@@ -1,8 +1,9 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { pool } from '../database/db.js';
+import { SECRET_KEY } from '../../config.js'; // Importante: Importar la clave
 
-// --- LOGIN (Sin cambios) ---
+// --- LOGIN ---
 export const login = async (req, res) => {
     const { email, password } = req.body;
 
@@ -23,10 +24,11 @@ export const login = async (req, res) => {
             return res.status(401).json({ message: 'Credenciales inválidas.' });
         }
 
+        // FIRMA DEL TOKEN CON LA CLAVE CORRECTA
         const token = jwt.sign(
             { id: user.uid_users, email: user.email, role: user.id_rols }, 
-            process.env.JWT_SECRET, 
-            { expiresIn: '1h' }
+            SECRET_KEY, 
+            { expiresIn: '24h' }
         );
         
         res.json({ token, user: { id: user.uid_users, email: user.email, name: user.first_name } });

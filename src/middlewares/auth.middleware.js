@@ -1,26 +1,23 @@
 import jwt from 'jsonwebtoken';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { SECRET_KEY } from '../../config.js'; 
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const dbPath = path.join(__dirname, '../db.json');
+export const verifyToken = (req, res, next) => {
+    try {
+        const authHeader = req.headers['authorization'];
+        const token = authHeader && authHeader.split(' ')[1];
 
-export const authenticateToken = (req, res, next) => {
-    const token = req.headers['authorization']?.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ message: 'Acceso denegado: Token no proporcionado' });
+        }
 
-    if (!token) return res.sendStatus(401); 
-
-    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-        if (err) return res.sendStatus(403); 
-        
-        let data = JSON.parse(fs.readFileSync(dbPath));
-        const foundUser = data.users.find(u => u.Uid_users === user.id); 
-        
-        if (!foundUser) return res.status(404).json({ message: 'User not found' });
-
-        req.user = foundUser; 
-        next(); 
-    });
+        jwt.verify(token, SECRET_KEY, (err, user) => {
+            if (err) {
+                return res.status(403).json({ message: 'Token inválido o expirado' });
+            }
+            req.user = user;
+            next();
+        });
+    } catch (error) {
+        return res.status(500).json({ message: 'Error interno en autenticación' });
+    }
 };
