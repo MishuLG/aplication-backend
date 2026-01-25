@@ -139,23 +139,57 @@ export const updateUserById = async (req, res) => {
 };
 
 export const deleteUserById = async (req, res) => {
-    const { id } = req.params;
+  const { id } = req.params;
+  
+  // 1. SEGURIDAD: Validar Rol de Admin (Redundancia por seguridad)
+  // Aunque el middleware ya lo hace, esto protege si alguien llama la función directamente.
+  if (req.user.role !== 1) { // Asumiendo 1 = Admin
+      return res.status(403).json({ 
+          message: "Acceso denegado: Solo los administradores pueden eliminar usuarios." 
+      });
+  }
 
-    // --- PROTECCIÓN: No auto-eliminarse ---
-    // Verificamos si el usuario intenta borrarse a sí mismo comparando con el token (req.user)
-    if (req.user && req.user.id === id) {
-        return res.status(403).json({ message: 'No puedes eliminar tu propia cuenta mientras estás conectado.' });
+  // 2. SEGURIDAD: Validación de Autoborrado
+  const currentUserId = req.user?.uid_users || req.user?.id; 
+  if (currentUserId && currentUserId == id) {
+      return res.status(403).json({ 
+          message: "Acción denegada: No puedes eliminar tu propia cuenta de administrador mientras estás en uso." 
+      });
+  }
+
+  try {
+    // 3. INTENTO DE BORRADO (Base de Datos)
+    // Usamos el modelo con transacción que te di antes (borra user + tutor)
+    const user = await deleteUserByIdModel(id);
+    
+    if (!user) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+    
+    res.json({ message: "Usuario eliminado correctamente", user });
+
+  } catch (error) {
+    console.error("Error eliminando usuario:", error);
+
+    // 4. MANEJO DE INTEGRIDAD REFERENCIAL (Dependencias)
+    if (error.code === '23503') {
+        if (error.detail && error.detail.includes('students')) {
+            return res.status(409).json({ 
+                message: "No se puede eliminar: Este usuario es un Tutor con ESTUDIANTES asignados. Reasigne o elimine los estudiantes primero." 
+            });
+        }
+        if (error.detail && error.detail.includes('enrollments')) {
+            return res.status(409).json({ 
+                message: "No se puede eliminar: El usuario tiene INSCRIPCIONES o NOTAS registradas." 
+            });
+        }
+        return res.status(409).json({ 
+            message: "No se puede eliminar el usuario porque tiene registros importantes asociados (Integridad de Datos)." 
+        });
     }
 
-    try {
-        const user = await deleteUserByIdModel(id);
-        if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
-        res.json({ message: 'Usuario eliminado correctamente', user });
-    } catch (error) {
-        console.error(error);
-        if (error.code === '23503') return res.status(409).json({ message: 'No se puede eliminar: El usuario tiene roles o datos asociados.' });
-        res.status(500).json({ message: 'Error al eliminar usuario' });
-    }
+    res.status(500).json({ message: "Error interno del servidor", error: error.message });
+  }
 };
 
 // Controladores adicionales

@@ -98,10 +98,31 @@ export const updateUserByIdModel = async (id, userData) => {
     return result.rows[0];
 };
 
-export const deleteUserByIdModel = async (id) => {
-    const query = `DELETE FROM users WHERE uid_users = $1 RETURNING uid_users;`;
-    const result = await pool.query(query, [id]);
-    return result.rows[0];
+// Asegúrate de que 'pool' esté importado arriba: import { pool } from '../database/db.js';
+
+export const deleteUserByIdModel = async (uid_users) => {
+  // Usamos 'client' en lugar de 'pool' directo para poder hacer una Transacción
+  const client = await pool.connect(); 
+  
+  try {
+    await client.query('BEGIN'); // Iniciamos la transacción (Todo o nada)
+
+    // PASO 1: Eliminar primero la dependencia en la tabla 'tutors'
+    // Esto quita el candado de la llave foránea
+    await client.query('DELETE FROM tutors WHERE uid_users = $1', [uid_users]);
+
+    // PASO 2: Eliminar al usuario de la tabla 'users'
+    const response = await client.query('DELETE FROM users WHERE uid_users = $1 RETURNING *', [uid_users]);
+
+    await client.query('COMMIT'); // Guardamos los cambios
+    return response.rows[0];
+
+  } catch (error) {
+    await client.query('ROLLBACK'); // Si algo falla, deshacemos todo
+    throw error;
+  } finally {
+    client.release(); // Liberamos la conexión
+  }
 };
 
 // Funciones auxiliares

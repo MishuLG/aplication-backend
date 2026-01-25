@@ -22,6 +22,7 @@ export const checkDuplicateStudentModel = async (idTutor, firstName, lastName, d
 };
 
 export const getAllStudentsModel = async () => {
+    // Usamos COALESCE para evitar nulos y prevenir fallos en el frontend
     const query = `
         SELECT 
             s.id_student,
@@ -29,8 +30,8 @@ export const getAllStudentsModel = async () => {
             t.uid_users AS tutor_user_id, 
             s.id_section,
             s.id_school_year,
-            s.first_name AS first_name_student,
-            s.last_name AS last_name_student,
+            COALESCE(s.first_name, '') AS first_name_student,
+            COALESCE(s.last_name, '') AS last_name_student,
             s.health_record,
             s.gender,
             s.street,

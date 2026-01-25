@@ -4,6 +4,8 @@ import { config } from 'dotenv';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import sequelize from "./database/sequelize.js";  
+
+// --- IMPORTACIÓN DE RUTAS EXISTENTES ---
 import userRoutes from "./routes/users.routes.js";
 import studentRoutes from "./routes/students.routes.js";
 import enrollmentRoutes from "./routes/enrollments.routes.js";
@@ -19,6 +21,11 @@ import evaluationsRoutes from './routes/evaluations.routes.js';
 import newslettersRoutes from './routes/newsletters.routes.js';
 import dashboardRoutes from './routes/dashboard.routes.js';
 
+// --- IMPORTACIÓN DE RUTAS NUEVAS (AJUSTES) ---
+import promotionRoutes from './routes/promotion.routes.js'; 
+import bulletinRoutes from './routes/bulletin.routes.js';   
+import gradesRoutes from './routes/grades.routes.js'; // <--- AGREGAR ESTO (Importar la ruta)
+
 dotenv.config();
 config();
 
@@ -32,6 +39,7 @@ app.use(cors({
 
 app.use(express.json()); 
 
+// --- REGISTRO DE RUTAS ---
 app.use('/api', userRoutes);
 app.use('/api', studentRoutes);
 app.use('/api', enrollmentRoutes);
@@ -47,8 +55,13 @@ app.use('/api', evaluationsRoutes);
 app.use('/api', newslettersRoutes);
 app.use('/api', dashboardRoutes);
 
+// --- REGISTRO DE RUTAS NUEVAS ---
+app.use('/api', promotionRoutes); 
+app.use('/api', bulletinRoutes);  
+app.use('/api', gradesRoutes); // <--- AGREGAR ESTO (Activar la ruta en el servidor)
 
-sequelize.sync()
+// --- CONEXIÓN BASE DE DATOS ---
+sequelize.sync() 
   .then(() => {
     console.log("Sequelize connected successfully");
     app.listen(PORT, () => {
