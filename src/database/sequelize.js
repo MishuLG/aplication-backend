@@ -1,12 +1,16 @@
 import { Sequelize } from "sequelize";
-import dotenv from "dotenv";
+import { DB_HOST, DB_DATABASE, DB_PASSWORD, DB_PORT, DB_USER } from "../../config.js";
 
-dotenv.config();
-
-const sequelize = new Sequelize(process.env.DB_DATABASE, process.env.DB_USER, process.env.DB_PASSWORD, {
-  host: process.env.DB_HOST,
+const sequelize = new Sequelize(DB_DATABASE, DB_USER, DB_PASSWORD, {
+  host: DB_HOST,
   dialect: "postgres",
-  logging: false, 
+  port: DB_PORT,
+  logging: false, // Ponlo en console.log si quieres ver los SQL
+  define: {
+    timestamps: true,     // Crea created_at y updated_at automáticamente
+    underscored: true,    // ¡CLAVE! Convierte camelCase a snake_case (createdAt -> created_at)
+    freezeTableName: true // Evita que pluralice nombres raros automáticamente
+  },
 });
 
 export default sequelize;
