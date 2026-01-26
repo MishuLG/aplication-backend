@@ -34,23 +34,47 @@ async function seedDatabase() {
         }
         console.log('✅ Grados creados.');
 
-        // 3. MATERIAS
-        const subjects = await Subject.bulkCreate([
-            { name_subject: 'Matemáticas', description_subject: 'Ciencias exactas' },
-            { name_subject: 'Lenguaje', description_subject: 'Literatura' },
-            { name_subject: 'Ciencias Naturales', description_subject: 'Biología' },
-            { name_subject: 'Inglés', description_subject: 'Idioma' },
-            { name_subject: 'Educación Física', description_subject: 'Deporte' },
-            { name_subject: 'Educación Estética', description_subject: 'Arte' }
-        ]);
-        console.log('✅ Materias creadas.');
+// 3. MATERIAS (Lista Ampliada y Mejorada)
+        const subjectsData = [
+            // Básicas
+            { name_subject: 'Matemáticas', description_subject: 'Cálculo y Lógica' },
+            { name_subject: 'Lenguaje y Comunicación', description_subject: 'Gramática y Literatura' },
+            { name_subject: 'Ciencias Naturales', description_subject: 'Biología y Ambiente' },
+            { name_subject: 'Ciencias Sociales', description_subject: 'Historia y Geografía' },
+            // Complementarias
+            { name_subject: 'Inglés', description_subject: 'Idioma Extranjero' },
+            { name_subject: 'Educación Física', description_subject: 'Deporte y Salud' },
+            { name_subject: 'Educación Estética', description_subject: 'Arte y Música' },
+            { name_subject: 'Educación para el Trabajo', description_subject: 'Manualidades y Oficios' },
+            { name_subject: 'Informática', description_subject: 'Tecnología Básica' },
+            { name_subject: 'Valores Ciudadanos', description_subject: 'Ética y Moral' }
+        ];
+        
+        const subjects = await Subject.bulkCreate(subjectsData);
+        console.log('✅ Materias ampliadas creadas.');
 
-        // 4. PENSUM
+        // 4. PENSUM (Asignación Inteligente por Grado)
+        // Lógica: 
+        // - 1ro a 3er grado: Ven materias básicas + Estética + Ed Física
+        // - 4to a 6to grado: Se agrega Inglés, Informática y Trabajo (Mayor complejidad)
+        
         for (const grade of grades) {
-            await grade.addSubjects(subjects);
-        }
-        console.log('✅ Pensum vinculado.');
+            let subjectsForGrade = [];
 
+            if (['1er Grado', '2do Grado', '3er Grado'].includes(grade.name_grade)) {
+                // Grados bajos: Filtramos materias complejas
+                subjectsForGrade = subjects.filter(s => 
+                    !['Inglés', 'Informática', 'Educación para el Trabajo'].includes(s.name_subject)
+                );
+            } else {
+                // Grados altos: Ven TODAS las materias
+                subjectsForGrade = subjects;
+            }
+
+            await grade.addSubjects(subjectsForGrade);
+        }
+        console.log('✅ Pensum vinculado con lógica de complejidad.');
+        
         // 5. AÑO ESCOLAR
         await SchoolYear.create({
             name_period: '2025-2026',

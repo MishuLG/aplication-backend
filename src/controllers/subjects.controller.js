@@ -1,17 +1,16 @@
-import { Subject, Grade, sequelize } from "../models/Sequelize/index.js";
+import { Subject, Grade } from "../models/Sequelize/index.js";
 
-// --- OBTENER MATERIAS (CORREGIDO: Sin pedir description) ---
+// --- OBTENER MATERIAS ---
 export const getAllSubjects = async (req, res) => {
   try {
     const { id_grade } = req.query; 
 
     let options = {
         order: [['name_subject', 'ASC']], 
-        // CORRECCIÓN: Quitamos 'description' de aquí porque no existe en tu BD
-        attributes: ['id_subject', 'name_subject'] 
+        attributes: ['id_subject', 'name_subject', 'description_subject'] // Agregada descripción
     };
 
-    // SI EL FRONTEND ENVÍA UN GRADO (Filtro inteligente)
+    // Filtro opcional por grado (si se necesita a futuro)
     if (id_grade) {
         options.include = [{
             model: Grade,
@@ -44,10 +43,9 @@ export const getSubjectById = async (req, res) => {
     }
 };
 
-// --- CREAR MATERIA (CORREGIDO: Solo nombre) ---
+// --- CREAR MATERIA ---
 export const createSubject = async (req, res) => {
-    // CORRECCIÓN: Solo recibimos el nombre
-    const { name_subject } = req.body;
+    const { name_subject, description_subject } = req.body;
 
     if (!name_subject) {
         return res.status(400).json({ message: 'El nombre de la materia es obligatorio' });
@@ -55,8 +53,8 @@ export const createSubject = async (req, res) => {
 
     try {
         const newSubject = await Subject.create({
-            name_subject
-            // Quitamos description de aquí también
+            name_subject,
+            description_subject
         });
         res.status(201).json(newSubject);
     } catch (error) {
@@ -68,7 +66,7 @@ export const createSubject = async (req, res) => {
 // --- ACTUALIZAR MATERIA ---
 export const updateSubjectById = async (req, res) => {
     const { id } = req.params;
-    const { name_subject } = req.body; // Quitamos description
+    const { name_subject, description_subject } = req.body;
 
     try {
         const subject = await Subject.findByPk(id);
@@ -76,7 +74,7 @@ export const updateSubjectById = async (req, res) => {
             return res.status(404).json({ message: 'Materia no encontrada' });
         }
 
-        await subject.update({ name_subject });
+        await subject.update({ name_subject, description_subject });
         res.json(subject);
     } catch (error) {
         res.status(500).json({ message: 'Error al actualizar', error: error.message });
@@ -94,6 +92,7 @@ export const deleteSubjectById = async (req, res) => {
             res.status(404).json({ message: 'Materia no encontrada' });
         }
     } catch (error) {
-        res.status(500).json({ message: 'No se puede eliminar la materia porque está en uso.' });
+        // Manejo amigable de errores de llave foránea (si la materia se usa en horarios)
+        res.status(409).json({ message: 'No se puede eliminar: Esta materia ya está asignada a horarios o notas.' });
     }
 };

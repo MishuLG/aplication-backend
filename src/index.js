@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import sequelize from "./database/sequelize.js";  
 
-// --- IMPORTACIÓN DE RUTAS EXISTENTES ---
+// --- IMPORTACIÓN DE RUTAS ---
 import userRoutes from "./routes/users.routes.js";
 import studentRoutes from "./routes/students.routes.js";
 import enrollmentRoutes from "./routes/enrollments.routes.js";
@@ -20,11 +20,9 @@ import attendanceRoutes from './routes/attendance.routes.js';
 import evaluationsRoutes from './routes/evaluations.routes.js';
 import newslettersRoutes from './routes/newsletters.routes.js';
 import dashboardRoutes from './routes/dashboard.routes.js';
-
-// --- IMPORTACIÓN DE RUTAS NUEVAS (AJUSTES) ---
 import promotionRoutes from './routes/promotion.routes.js'; 
 import bulletinRoutes from './routes/bulletin.routes.js';   
-import gradesRoutes from './routes/grades.routes.js'; // <--- AGREGAR ESTO (Importar la ruta)
+import gradesRoutes from './routes/grades.routes.js'; // Ruta de Notas
 
 dotenv.config();
 config();
@@ -39,7 +37,9 @@ app.use(cors({
 
 app.use(express.json()); 
 
-// --- REGISTRO DE RUTAS ---
+// --- REGISTRO DE RUTAS ESTANDARIZADO ---
+
+// Rutas Generales
 app.use('/api', userRoutes);
 app.use('/api', studentRoutes);
 app.use('/api', enrollmentRoutes);
@@ -47,18 +47,20 @@ app.use('/api/auth', authRoutes);
 app.use('/api', tutorRoutes);
 app.use('/api', sectionsRoutes);
 app.use('/api', subjectsRoutes);
-app.use('/api', schoolyearRoutes);
 app.use('/api', subjectstakenRoutes);
-app.use('/api', classscheduleRoutes);
-app.use('/api', attendanceRoutes);
+
+// CORRECCIÓN: Rutas con Prefijo Específico (Soluciona el 404)
+app.use('/api/school_years', schoolyearRoutes);     // <--- ¡AQUÍ ESTÁ LA SOLUCIÓN!
+app.use('/api/class-schedules', classscheduleRoutes); 
+app.use('/api/attendance', attendanceRoutes);
+
+// Resto de rutas
 app.use('/api', evaluationsRoutes);
 app.use('/api', newslettersRoutes);
 app.use('/api', dashboardRoutes);
-
-// --- REGISTRO DE RUTAS NUEVAS ---
 app.use('/api', promotionRoutes); 
 app.use('/api', bulletinRoutes);  
-app.use('/api', gradesRoutes); // <--- AGREGAR ESTO (Activar la ruta en el servidor)
+app.use('/api', gradesRoutes); 
 
 // --- CONEXIÓN BASE DE DATOS ---
 sequelize.sync() 

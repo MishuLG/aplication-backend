@@ -1,24 +1,20 @@
 import { Router } from 'express';
 import { 
-    getAllClassSchedules, 
-    getClassScheduleById, 
     createClassSchedule, 
-    updateClassSchedule, // Corregido (antes updateClassScheduleById)
-    deleteClassSchedule  // Corregido (antes deleteClassScheduleById)
+    getClassSchedulesBySection, 
+    deleteClassSchedule,
+    generateAutoSchedule 
 } from '../controllers/classSchedules.controller.js';
 
-import { authenticateToken } from '../middlewares/authenticate.token.js';
-import { isAdmin } from '../middlewares/auth.middleware.js';
+// CORRECCIÓN: Importamos 'authenticateToken' del archivo correcto
+import { authenticateToken } from '../middlewares/authenticate.token.js'; 
 
 const router = Router();
 
-// Rutas Públicas (o solo autenticadas)
-router.get('/class_schedules', authenticateToken, getAllClassSchedules);
-router.get('/class_schedules/:id', authenticateToken, getClassScheduleById);
-
-// Rutas Protegidas (Solo Admin)
-router.post('/class_schedules', authenticateToken, isAdmin, createClassSchedule);
-router.put('/class_schedules/:id', authenticateToken, isAdmin, updateClassSchedule);
-router.delete('/class_schedules/:id', authenticateToken, isAdmin, deleteClassSchedule);
+// Aplicamos el middleware de seguridad (authenticateToken) a todas las rutas
+router.post('/', authenticateToken, createClassSchedule);
+router.get('/section/:id_section', authenticateToken, getClassSchedulesBySection);
+router.delete('/:id', authenticateToken, deleteClassSchedule);
+router.post('/generate/:id_section', authenticateToken, generateAutoSchedule);
 
 export default router;
