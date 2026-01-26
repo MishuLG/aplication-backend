@@ -1,8 +1,10 @@
-import { Enrollment, Student, Section, Grade, SchoolYear } from "../models/Sequelize/index.js";
+// AGREGAMOS 'Evaluation' y 'Subject' A LOS IMPORTS PARA EL CÁLCULO
+import { Enrollment, Student, Section, Grade, SchoolYear, Evaluation, Subject } from "../models/Sequelize/index.js";
 
-// --- OBTENER TODAS LAS INSCRIPCIONES ---
+// --- OBTENER TODAS LAS INSCRIPCIONES (CON CÁLCULO DE PROMEDIO EN VIVO) ---
 export const getAllEnrollments = async (req, res) => {
     try {
+        // 1. Traer todas las inscripciones con sus datos relacionados
         const enrollments = await Enrollment.findAll({
             include: [
                 { 
@@ -20,7 +22,51 @@ export const getAllEnrollments = async (req, res) => {
             ],
             order: [['id_enrollment', 'DESC']]
         });
-        res.json(enrollments);
+
+        // 2. Traer TODAS las evaluaciones del sistema (para cruzar datos y calcular)
+        const allEvaluations = await Evaluation.findAll({
+            include: [{ model: Subject }]
+        });
+
+        // 3. Procesar: Calcular promedio real para cada estudiante "al vuelo"
+        const data = enrollments.map(enr => {
+            const e = enr.toJSON(); // Convertir instancia Sequelize a objeto plano JSON
+            
+            // a) Filtrar notas de este estudiante específico
+            const studentGrades = allEvaluations.filter(ev => ev.id_student === e.id_student);
+
+            // b) Calcular Promedio (Misma lógica matemática del PDF)
+            let calculatedAvg = "0.00";
+            
+            if (studentGrades.length > 0) {
+                const subjectsMap = {};
+                // Agrupar notas por materia
+                studentGrades.forEach(g => {
+                    const sName = g.Subject?.name_subject || g.id_subject;
+                    if(!subjectsMap[sName]) subjectsMap[sName] = { sum: 0, count: 0 };
+                    subjectsMap[sName].sum += parseFloat(g.score);
+                    subjectsMap[sName].count++;
+                });
+
+                // Promedio de promedios (Suma de promedios de materias / Cantidad de materias)
+                let sumAvgs = 0; 
+                let numSubj = 0;
+                Object.values(subjectsMap).forEach(s => {
+                    sumAvgs += (s.sum / s.count);
+                    numSubj++;
+                });
+                
+                if (numSubj > 0) calculatedAvg = (sumAvgs / numSubj).toFixed(2);
+            }
+
+            // c) Sobrescribir 'final_average' con el cálculo fresco, ignorando el 0.00 de la BD
+            return { 
+                ...e, 
+                final_average: calculatedAvg 
+            };
+        });
+
+        res.json(data);
     } catch (error) {
         console.error("Error al obtener inscripciones:", error);
         res.status(500).json({ message: "Error interno del servidor" });

@@ -1,4 +1,4 @@
-import { Evaluation, Student, Subject, ClassSchedule } from '../models/Sequelize/index.js';
+import { Evaluation, Student, Subject, ClassSchedule, Enrollment } from '../models/Sequelize/index.js'; // SE AGREGÓ ENROLLMENT
 
 // --- HELPER: MAPEO DE BASE DE DATOS A FRONTEND ---
 // Esto adapta los nombres de columnas de Sequelize a lo que usa tu React
@@ -26,6 +26,53 @@ const mapToFrontend = (evalItem) => {
         subject_name: e.Subject ? e.Subject.name_subject : 'Materia desconocida',
         schedule_info: e.ClassSchedule ? `${e.ClassSchedule.day_of_week} ${e.ClassSchedule.start_time}` : ''
     };
+};
+
+// --- 🔥 NUEVA FUNCIÓN: CÁLCULO DE PROMEDIO AUTOMÁTICO ---
+const updateStudentAverage = async (id_student) => {
+    try {
+        // 1. Obtener todas las notas del estudiante
+        const allGrades = await Evaluation.findAll({ 
+            where: { id_student },
+            include: [{ model: Subject }] 
+        });
+        
+        if (allGrades.length > 0) {
+            // 2. Agrupar por materia para sacar promedio por asignatura
+            const subjectsMap = {};
+            allGrades.forEach(g => {
+                const subjId = g.id_subject;
+                if(!subjectsMap[subjId]) subjectsMap[subjId] = { sum: 0, count: 0 };
+                subjectsMap[subjId].sum += parseFloat(g.score);
+                subjectsMap[subjId].count++;
+            });
+
+            // 3. Calcular promedio general (Promedio de los promedios)
+            let sumAverages = 0;
+            let numSubjects = 0;
+
+            Object.values(subjectsMap).forEach(subj => {
+                const subjAvg = subj.sum / subj.count;
+                sumAverages += subjAvg;
+                numSubjects++;
+            });
+
+            const finalAverage = numSubjects > 0 ? (sumAverages / numSubjects).toFixed(2) : 0;
+
+            // 4. Actualizar Inscripción activa
+            const enrollment = await Enrollment.findOne({ 
+                where: { id_student, status: 'Cursando' },
+                order: [['id_enrollment', 'DESC']]
+            });
+
+            if (enrollment) {
+                await enrollment.update({ final_average: finalAverage });
+                console.log(`✅ Promedio actualizado para estudiante ${id_student}: ${finalAverage}`);
+            }
+        }
+    } catch (error) {
+        console.error("⚠️ Error recalculando promedio:", error);
+    }
 };
 
 // --- OBTENER TODAS ---
@@ -116,6 +163,9 @@ export const createEvaluation = async (req, res) => {
             remarks: observations
         });
 
+        // 🔥 ACTIVA EL RE-CÁLCULO AUTOMÁTICO
+        await updateStudentAverage(id_student);
+
         res.status(201).json(mapToFrontend(newEval));
 
     } catch (error) {
@@ -157,6 +207,9 @@ export const updateEvaluationById = async (req, res) => {
             remarks: observations !== undefined ? observations : evaluation.remarks
         });
 
+        // 🔥 ACTIVA EL RE-CÁLCULO AUTOMÁTICO
+        await updateStudentAverage(evaluation.id_student);
+
         res.json(mapToFrontend(evaluation));
 
     } catch (error) {
@@ -169,9 +222,17 @@ export const updateEvaluationById = async (req, res) => {
 export const deleteEvaluationById = async (req, res) => {
     const { id } = req.params;
     try {
-        const deleted = await Evaluation.destroy({ where: { id_evaluations: id } });
+        // Buscamos primero para obtener el ID del estudiante antes de borrar
+        const evaluation = await Evaluation.findByPk(id);
         
-        if (!deleted) return res.status(404).json({ message: 'Evaluación no encontrada' });
+        if (!evaluation) return res.status(404).json({ message: 'Evaluación no encontrada' });
+        
+        const studentId = evaluation.id_student; // Guardamos ID para recalcular
+        
+        await evaluation.destroy();
+        
+        // 🔥 RE-CALCULAR PROMEDIO TRAS BORRAR
+        await updateStudentAverage(studentId);
         
         res.json({ message: 'Evaluación eliminada correctamente' });
     } catch (error) {

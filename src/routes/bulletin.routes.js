@@ -3,7 +3,8 @@ import { generateBulletinPDF } from "../controllers/bulletin.controller.js";
 
 const router = Router();
 
-// Ruta: /api/bulletin/123 (donde 123 es el id_enrollment)
-router.get("/bulletin/:id_enrollment", generateBulletinPDF);
+// RUTA CORRECTA: Usamos la raíz "/" porque el prefijo ya está en index.js
+// Resultado final: /api/bulletins/123
+router.get("/:id_enrollment", generateBulletinPDF);
 
 export default router;
