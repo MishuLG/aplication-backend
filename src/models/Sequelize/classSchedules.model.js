@@ -1,42 +1,33 @@
 import { DataTypes } from "sequelize";
 import sequelize from "../../database/sequelize.js";
 
+// ¡IMPORTANTE! NO IMPORTAR: Section, Subject aquí.
+
 const ClassSchedule = sequelize.define("ClassSchedule", {
-  // CORRECCIÓN: Tu base de datos usa PLURAL aquí
-  id_class_schedules: { 
+  id_class_schedules: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true,
   },
   id_section: {
     type: DataTypes.INTEGER,
-    allowNull: true // Mantenemos lo que arreglamos antes
+    allowNull: false,
   },
   id_subject: {
     type: DataTypes.INTEGER,
-    allowNull: true
+    allowNull: false,
   },
   day_of_week: {
-    type: DataTypes.STRING(20), 
+    type: DataTypes.STRING(20), // 'Lunes', 'Martes'...
     allowNull: false,
   },
   start_time: {
-    type: DataTypes.TIME, 
+    type: DataTypes.TIME,
     allowNull: false,
   },
   end_time: {
     type: DataTypes.TIME,
     allowNull: false,
-  },
-  createdAt: {
-    type: DataTypes.DATE,
-    allowNull: true,
-    field: 'created_at'
-  },
-  updatedAt: {
-    type: DataTypes.DATE,
-    allowNull: true,
-    field: 'updated_at'
   }
 }, {
   tableName: "class_schedules",

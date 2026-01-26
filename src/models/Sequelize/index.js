@@ -29,12 +29,11 @@ Section.belongsTo(Grade, { foreignKey: 'id_grade' });
 SchoolYear.hasMany(Section, { foreignKey: 'id_school_year' });
 Section.belongsTo(SchoolYear, { foreignKey: 'id_school_year' });
 
-// 3. Pensum (Grados <-> Materias)
+// 3. Pensum
 Grade.belongsToMany(Subject, { through: 'curriculum', foreignKey: 'id_grade', otherKey: 'id_subject' });
 Subject.belongsToMany(Grade, { through: 'curriculum', foreignKey: 'id_subject', otherKey: 'id_grade' });
 
 // 4. Tutores y Estudiantes
-// Un User puede ser Tutor
 User.hasOne(Tutor, { foreignKey: 'uid_users' });
 Tutor.belongsTo(User, { foreignKey: 'uid_users' });
 
@@ -55,16 +54,17 @@ ClassSchedule.belongsTo(Section, { foreignKey: 'id_section' });
 Subject.hasMany(ClassSchedule, { foreignKey: 'id_subject' });
 ClassSchedule.belongsTo(Subject, { foreignKey: 'id_subject' });
 
-// 7. Asistencias (Vinculadas al estudiante y al horario de la clase)
-Student.hasMany(Attendance, { foreignKey: 'student_id' });
-Attendance.belongsTo(Student, { foreignKey: 'student_id' });
+// 7. Asistencias (CORREGIDO: Agregamos relación con Section)
+Student.hasMany(Attendance, { foreignKey: 'id_student' });
+Attendance.belongsTo(Student, { foreignKey: 'id_student' });
 
-ClassSchedule.hasMany(Attendance, { foreignKey: 'class_schedule_id' });
-Attendance.belongsTo(ClassSchedule, { foreignKey: 'class_schedule_id' });
+Section.hasMany(Attendance, { foreignKey: 'id_section' }); // <--- ¡ESTA FALTABA!
+Attendance.belongsTo(Section, { foreignKey: 'id_section' }); // <--- ¡ESTA FALTABA!
 
 // 8. Evaluaciones y Notas
 Evaluation.belongsTo(Student, { foreignKey: "id_student" });
 Evaluation.belongsTo(Subject, { foreignKey: "id_subject" });
+Evaluation.belongsTo(ClassSchedule, { foreignKey: "id_class_schedules" });
 
 Enrollment.belongsTo(Student, { foreignKey: 'id_student' });
 Enrollment.belongsTo(Section, { foreignKey: 'id_section' });
@@ -72,7 +72,7 @@ Enrollment.belongsTo(Section, { foreignKey: 'id_section' });
 AcademicRecord.belongsTo(Enrollment, { foreignKey: 'id_enrollment' });
 AcademicRecord.belongsTo(Subject, { foreignKey: 'id_subject' });
 
-// 9. Noticias (Autor)
+// 9. Noticias
 User.hasMany(Newsletter, { foreignKey: 'uid_users' });
 Newsletter.belongsTo(User, { foreignKey: 'uid_users' });
 

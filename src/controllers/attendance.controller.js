@@ -1,130 +1,103 @@
-import {
-    getAllAttendanceModel,
-    getAttendanceByIdModel,
-    createAttendanceModel,
-    updateAttendanceByIdModel,
-    deleteAttendanceByIdModel,
-    checkDuplicateAttendanceModel
-} from '../models/attendance.model.js';
+import { Attendance, Student, Section, Grade } from '../models/Sequelize/index.js';
 
-const isFutureDate = (dateString) => {
-    const inputDate = new Date(dateString);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); 
-
-    return inputDate > today; 
-};
-
+// --- OBTENER TODAS LAS ASISTENCIAS ---
 export const getAllAttendance = async (req, res) => {
     try {
-        const attendance = await getAllAttendanceModel();
+        const attendance = await Attendance.findAll({
+            include: [
+                { 
+                    model: Student, 
+                    attributes: ['id_student', 'first_name', 'last_name', 'dni'] 
+                },
+                { 
+                    model: Section,
+                    attributes: ['id_section', 'num_section'],
+                    include: [{ model: Grade, attributes: ['name_grade'] }]
+                }
+            ],
+            order: [['attendance_date', 'DESC']]
+        });
         res.json(attendance);
     } catch (error) {
-        console.error("Error en getAllAttendance:", error);
-        res.status(500).json({ message: 'Error al obtener registros', error: error.message });
+        console.error("Error al obtener asistencias:", error);
+        res.status(500).json({ message: 'Error interno', error: error.message });
     }
 };
 
+// --- OBTENER UNA POR ID ---
 export const getAttendanceById = async (req, res) => {
     const { id } = req.params;
     try {
-        const attendance = await getAttendanceByIdModel(id);
-        if (!attendance) {
-            return res.status(404).json({ message: 'Registro no encontrado' });
-        }
-        res.json(attendance);
+        const item = await Attendance.findByPk(id);
+        if (!item) return res.status(404).json({ message: 'Registro no encontrado' });
+        res.json(item);
     } catch (error) {
-        console.error("Error en getAttendanceById:", error);
-        res.status(500).json({ message: 'Error al obtener registro' });
+        res.status(500).json({ message: 'Error interno' });
     }
 };
 
+// --- REGISTRAR ASISTENCIA ---
 export const createAttendance = async (req, res) => {
-    const { id_student, id_section, attendance_date, status, remarks, comments } = req.body;
-    const finalRemarks = remarks || comments;
+    const { id_student, id_section, attendance_date, status, remarks } = req.body;
 
+    // Validación básica
     if (!id_student || !id_section || !attendance_date || !status) {
         return res.status(400).json({ message: 'Faltan campos obligatorios.' });
     }
 
-    if (isFutureDate(attendance_date)) {
-        return res.status(400).json({ message: 'No se puede registrar asistencia en una fecha futura.' });
-    }
-
     try {
-        const isDuplicate = await checkDuplicateAttendanceModel(id_student, attendance_date);
-        if (isDuplicate) {
-            return res.status(409).json({ message: 'El estudiante ya tiene asistencia registrada en esta fecha.' });
+        // Verificar duplicados (Mismo estudiante, misma fecha)
+        const exists = await Attendance.findOne({
+            where: { id_student, attendance_date }
+        });
+
+        if (exists) {
+            return res.status(409).json({ message: 'Este estudiante ya tiene asistencia registrada para esta fecha.' });
         }
 
-        const attendance = await createAttendanceModel({
+        const newRecord = await Attendance.create({
             id_student,
             id_section,
             attendance_date,
-            status,
-            remarks: finalRemarks
+            status, // 'Presente', 'Ausente', etc.
+            observations: remarks // Mapeamos 'remarks' a 'observations' de la BD
         });
-        res.status(201).json(attendance);
+
+        res.status(201).json(newRecord);
     } catch (error) {
-        console.error("Error en createAttendance:", error);
-        if (error.code === '23503') {
-             return res.status(400).json({ message: 'El Estudiante o la Sección especificados no existen.' });
-        }
-        res.status(500).json({ message: 'Error al crear registro', error: error.message });
+        console.error(error);
+        res.status(500).json({ message: 'Error al registrar asistencia', error: error.message });
     }
 };
 
+// --- ACTUALIZAR ---
 export const updateAttendanceById = async (req, res) => {
     const { id } = req.params;
-    const { id_student, id_section, attendance_date, status, remarks, comments } = req.body;
-    const finalRemarks = remarks || comments;
-
-    if (!id_student || !id_section || !attendance_date || !status) {
-        return res.status(400).json({ message: 'Faltan campos obligatorios para la actualización.' });
-    }
-
-    if (isFutureDate(attendance_date)) {
-        return res.status(400).json({ message: 'No se puede registrar asistencia en una fecha futura.' });
-    }
+    const { status, remarks } = req.body;
 
     try {
+        const record = await Attendance.findByPk(id);
+        if (!record) return res.status(404).json({ message: 'Registro no encontrado' });
 
-        const isDuplicate = await checkDuplicateAttendanceModel(id_student, attendance_date, id);
-        if (isDuplicate) {
-            return res.status(409).json({ message: 'Ya existe OTRO registro con este estudiante y fecha.' });
-        }
-
-        const attendance = await updateAttendanceByIdModel(id, {
-            id_student,
-            id_section,
-            attendance_date,
-            status,
-            remarks: finalRemarks
+        await record.update({ 
+            status, 
+            observations: remarks 
         });
-
-        if (!attendance) {
-            return res.status(404).json({ message: 'Registro no encontrado para actualizar.' });
-        }
-        res.json(attendance);
+        
+        res.json(record);
     } catch (error) {
-        console.error("Error en updateAttendanceById:", error);
-        if (error.code === '23503') {
-             return res.status(400).json({ message: 'El Estudiante o la Sección especificados no existen.' });
-        }
-        res.status(500).json({ message: 'Error al actualizar registro', error: error.message });
+        res.status(500).json({ message: 'Error al actualizar', error: error.message });
     }
 };
 
+// --- ELIMINAR ---
 export const deleteAttendanceById = async (req, res) => {
     const { id } = req.params;
     try {
-        const attendance = await deleteAttendanceByIdModel(id);
-        if (!attendance) {
-            return res.status(404).json({ message: 'Registro no encontrado' });
-        }
-        res.json({ message: 'Registro eliminado correctamente', attendance });
+        const deleted = await Attendance.destroy({ where: { attendance_id: id } }); // Ojo: attendance_id es la PK en tu modelo
+        if (deleted) res.json({ message: 'Eliminado correctamente' });
+        else res.status(404).json({ message: 'Registro no encontrado' });
     } catch (error) {
-        console.error("Error en deleteAttendanceById:", error);
-        res.status(500).json({ message: 'Error al eliminar registro' });
+        res.status(500).json({ message: 'Error al eliminar' });
     }
 };

@@ -9,10 +9,10 @@ import {
 
 const router = Router();
 
-router.get('/enrollments', getAllEnrollments); 
-router.get('/enrollments/:id', getEnrollmentById); 
-router.post('/enrollments', createEnrollment); 
-router.delete('/enrollments/:id', deleteEnrollmentById); 
-router.put('/enrollments/:id', updateEnrollmentById); 
+router.get('/', getAllEnrollments); 
+router.get('/:id', getEnrollmentById); 
+router.post('/', createEnrollment); 
+router.delete('/:id', deleteEnrollmentById); 
+router.put('/:id', updateEnrollmentById); 
 
 export default router;

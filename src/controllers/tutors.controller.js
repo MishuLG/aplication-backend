@@ -1,94 +1,77 @@
-import {
-    getAllTutorsModel,
-    getTutorByIdModel,
-    createTutorModel,
-    updateTutorByIdModel,
-    deleteTutorByIdModel,
-    checkDuplicateTutorModel
-} from '../models/tutors.model.js';
+import { Tutor, User } from "../models/Sequelize/index.js";
 
+// --- OBTENER TODOS LOS TUTORES ---
 export const getAllTutors = async (req, res) => {
-    try {
-        const tutors = await getAllTutorsModel();
-        res.json(tutors);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Error al obtener la lista de tutores' });
-    }
+  try {
+    const tutors = await Tutor.findAll({
+      include: [{
+        model: User,
+        attributes: ['first_name', 'last_name', 'dni', 'email', 'number_tlf']
+      }]
+    });
+    res.json(tutors);
+  } catch (error) {
+    console.error("Error al obtener tutores:", error);
+    res.status(500).json({ message: "Error al obtener tutores" });
+  }
 };
 
+// --- OBTENER UN TUTOR POR ID ---
 export const getTutorById = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const tutor = await Tutor.findByPk(id, {
+      include: [{ model: User }]
+    });
+    if (!tutor) return res.status(404).json({ message: "Tutor no encontrado" });
+    res.json(tutor);
+  } catch (error) {
+    res.status(500).json({ message: "Error del servidor" });
+  }
+};
+
+// --- CREAR TUTOR ---
+export const createTutor = async (req, res) => {
+  const { uid_users, profession, work_place } = req.body;
+  try {
+    const newTutor = await Tutor.create({
+      uid_users,
+      profession,
+      work_place
+    });
+    res.status(201).json(newTutor);
+  } catch (error) {
+    res.status(500).json({ message: "Error al crear tutor", error: error.message });
+  }
+};
+
+// --- ACTUALIZAR TUTOR ---
+export const updateTutor = async (req, res) => {
     const { id } = req.params;
+    const { profession, work_place } = req.body;
     try {
-        const tutor = await getTutorByIdModel(id);
-        if (!tutor) {
-            return res.status(404).json({ message: 'Tutor no encontrado' });
-        }
+        const tutor = await Tutor.findByPk(id);
+        if (!tutor) return res.status(404).json({ message: "Tutor no encontrado" });
+
+        await tutor.update({ profession, work_place });
         res.json(tutor);
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Error al obtener el tutor' });
+        res.status(500).json({ message: "Error al actualizar tutor" });
     }
 };
 
-export const createTutor = async (req, res) => {
-    const { uid_users } = req.body;
-
-
-    if (!uid_users || uid_users.trim() === '') {
-        return res.status(400).json({ message: 'Error: Debe seleccionar un usuario válido para asignarlo como tutor.' });
-    }
-
-    try {
-        const isDuplicate = await checkDuplicateTutorModel(uid_users);
-        if (isDuplicate) {
-            return res.status(409).json({ message: 'Conflicto: Este usuario ya está registrado como tutor.' });
-        }
-
-        const newTutor = await createTutorModel({ uid_users });
-        res.status(201).json({ message: 'Tutor registrado exitosamente', newTutor });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Error interno al crear el tutor' });
-    }
-};
-
-export const updateTutorById = async (req, res) => {
-    const { id } = req.params;
-    const { uid_users } = req.body;
-
-
-    if (!uid_users) {
-        return res.status(400).json({ message: 'Error: El campo usuario es obligatorio.' });
-    }
-
-    try {
-        const isDuplicate = await checkDuplicateTutorModel(uid_users, id);
-        if (isDuplicate) {
-            return res.status(409).json({ message: 'Conflicto: El usuario seleccionado ya pertenece a otro tutor.' });
-        }
-
-        const updatedTutor = await updateTutorByIdModel(id, { uid_users });
-        if (!updatedTutor) {
-            return res.status(404).json({ message: 'Tutor no encontrado para actualizar' });
-        }
-        res.json({ message: 'Tutor actualizado correctamente', updatedTutor });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Error interno al actualizar el tutor' });
-    }
-};
-
-export const deleteTutorById = async (req, res) => {
+// --- ELIMINAR TUTOR ---
+export const deleteTutor = async (req, res) => {
     const { id } = req.params;
     try {
-        const deletedTutor = await deleteTutorByIdModel(id);
-        if (!deletedTutor) {
-            return res.status(404).json({ message: 'Tutor no encontrado' });
-        }
-        res.json({ message: 'Tutor eliminado correctamente', deletedTutor });
+        // Nota: Si borras el tutor, el usuario (login) sigue existiendo, solo pierde el perfil de tutor.
+        // Si quieres borrar todo, deberías borrar el usuario asociado en la tabla 'users'.
+        const deleted = await Tutor.destroy({ where: { id_tutor: id } });
+        
+        if (!deleted) return res.status(404).json({ message: "Tutor no encontrado" });
+        res.json({ message: "Tutor eliminado correctamente" });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Error al eliminar el tutor. Puede tener estudiantes asociados.' });
+        // Error común: El tutor tiene estudiantes asignados
+        res.status(409).json({ message: "No se puede eliminar: El tutor tiene estudiantes a su cargo." });
     }
 };

@@ -9,10 +9,10 @@ import {
 
 const router = Router();
 
-router.get('/newsletters', getAllNewsletters);               
-router.get('/newsletters/:id', getNewsletterById);          
-router.post('/newsletters', createNewsletter);               
-router.put('/newsletters/:id', updateNewsletterById);        
-router.delete('/newsletters/:id', deleteNewsletterById);     
+router.get('/', getAllNewsletters);               
+router.get('/:id', getNewsletterById);          
+router.post('/', createNewsletter);               
+router.put('/:id', updateNewsletterById);        
+router.delete('/:id', deleteNewsletterById);     
 
 export default router;

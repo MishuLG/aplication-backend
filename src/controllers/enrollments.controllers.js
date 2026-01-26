@@ -1,78 +1,90 @@
-import fs from 'fs';
+import { Enrollment, Student, Section, Grade, SchoolYear } from "../models/Sequelize/index.js";
 
-const readData = () => {
-    const data = fs.readFileSync('./src/db.json', 'utf-8');
-    return JSON.parse(data);
+// --- OBTENER TODAS LAS INSCRIPCIONES ---
+export const getAllEnrollments = async (req, res) => {
+    try {
+        const enrollments = await Enrollment.findAll({
+            include: [
+                { 
+                    model: Student, 
+                    attributes: ['id_student', 'first_name', 'last_name', 'dni'] 
+                },
+                { 
+                    model: Section,
+                    attributes: ['id_section', 'num_section'],
+                    include: [
+                        { model: Grade, attributes: ['name_grade'] },
+                        { model: SchoolYear, attributes: ['name_period'] }
+                    ]
+                }
+            ],
+            order: [['id_enrollment', 'DESC']]
+        });
+        res.json(enrollments);
+    } catch (error) {
+        console.error("Error al obtener inscripciones:", error);
+        res.status(500).json({ message: "Error interno del servidor" });
+    }
 };
 
-const writeData = (data) => {
-    fs.writeFileSync('./src/db.json', JSON.stringify(data, null, 2));
-};
-
-export const getAllEnrollments = (req, res) => {
-    const enrollments = readData().enrollments;
-    res.json(enrollments);
-};
-
-export const getEnrollmentById = (req, res) => {
+// --- OBTENER UNA POR ID ---
+export const getEnrollmentById = async (req, res) => {
     const { id } = req.params;
-    const enrollments = readData().enrollments;
-    const enrollment = enrollments.find(e => e.id_enrollments === parseInt(id));
-
-    if (enrollment) {
+    try {
+        const enrollment = await Enrollment.findByPk(id, {
+            include: [{ model: Student }, { model: Section }]
+        });
+        if (!enrollment) return res.status(404).json({ message: 'Inscripción no encontrada' });
         res.json(enrollment);
-    } else {
-        res.status(404).send('Enrollment not found');
+    } catch (error) {
+        res.status(500).json({ message: "Error del servidor" });
     }
 };
 
-export const createEnrollment = (req, res) => {
-    const newEnrollment = req.body;
-    const data = readData();
+// --- CREAR INSCRIPCIÓN ---
+export const createEnrollment = async (req, res) => {
+    const { id_student, id_section, status, final_average, observations } = req.body;
     
-    newEnrollment.id_enrollments = data.enrollments.length ? Math.max(...data.enrollments.map(e => e.id_enrollments)) + 1 : 1;
-    
-    if (!data.students.some(student => student.id_student === newEnrollment.id_student)) {
-        return res.status(400).send('Invalid student ID');
-    }
+    try {
+        // Verificar si ya está inscrito en esa sección
+        const exists = await Enrollment.findOne({ where: { id_student, id_section } });
+        if (exists) return res.status(409).json({ message: "El estudiante ya está inscrito en esta sección." });
 
-    data.enrollments.push(newEnrollment);
-    
-    writeData(data);
-    res.status(201).json(newEnrollment);
+        const newEnrollment = await Enrollment.create({
+            id_student,
+            id_section,
+            status: status || 'Cursando',
+            final_average: final_average || 0,
+            observations
+        });
+        res.status(201).json(newEnrollment);
+    } catch (error) {
+        res.status(500).json({ message: "Error al inscribir", error: error.message });
+    }
 };
 
-export const deleteEnrollmentById = (req, res) => {
+// --- ACTUALIZAR ---
+export const updateEnrollmentById = async (req, res) => {
     const { id } = req.params;
-    let data = readData();
-    
-    const initialLength = data.enrollments.length;
-    
-    data.enrollments = data.enrollments.filter(e => e.id_enrollments !== parseInt(id));
-    
-    if (data.enrollments.length < initialLength) {
-        writeData(data);
-        res.send('Enrollment deleted');
-    } else {
-        res.status(404).send('Enrollment not found');
+    try {
+        const enrollment = await Enrollment.findByPk(id);
+        if (!enrollment) return res.status(404).json({ message: 'Inscripción no encontrada' });
+
+        await enrollment.update(req.body);
+        res.json(enrollment);
+    } catch (error) {
+        res.status(500).json({ message: "Error al actualizar" });
     }
 };
 
-export const updateEnrollmentById = (req, res) => {
+// --- ELIMINAR ---
+export const deleteEnrollmentById = async (req, res) => {
     const { id } = req.params;
-    const updatedEnrollment = req.body;
-
-    let data = readData();
-    
-    const enrollmentIndex = data.enrollments.findIndex(e => e.id_enrollments === parseInt(id));
-
-    if (enrollmentIndex !== -1) {
-        updatedEnrollment.id_enrollments = parseInt(id); 
-        data.enrollments[enrollmentIndex] = updatedEnrollment;
-
-        writeData(data);
-        res.json(updatedEnrollment);
-    } else {
-        res.status(404).send('Enrollment not found');
+    try {
+        const deleted = await Enrollment.destroy({ where: { id_enrollment: id } });
+        if (deleted) res.json({ message: 'Inscripción eliminada' });
+        else res.status(404).json({ message: 'No encontrada' });
+    } catch (error) {
+        res.status(500).json({ message: "Error al eliminar" });
     }
 };

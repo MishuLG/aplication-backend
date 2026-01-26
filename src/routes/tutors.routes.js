@@ -1,18 +1,20 @@
-import { Router } from 'express';
+import { Router } from "express";
 import {
-    getAllTutors,
-    getTutorById,
-    createTutor,
-    updateTutorById,
-    deleteTutorById
-} from '../controllers/tutors.controller.js';
+  getAllTutors,
+  getTutorById,
+  createTutor,
+  updateTutor,
+  deleteTutor // <--- CORRECCIÓN: Usamos el nombre correcto
+} from "../controllers/tutors.controller.js";
+import { authenticateToken } from "../middlewares/authenticate.token.js";
 
 const router = Router();
 
-router.get('/tutors', getAllTutors);
-router.get('/tutors/:id', getTutorById);
-router.post('/tutors', createTutor);
-router.put('/tutors/:id', updateTutorById);
-router.delete('/tutors/:id', deleteTutorById);
+// Rutas protegidas
+router.get("/", authenticateToken, getAllTutors);
+router.get("/:id", authenticateToken, getTutorById);
+router.post("/", authenticateToken, createTutor);
+router.put("/:id", authenticateToken, updateTutor);
+router.delete("/:id", authenticateToken, deleteTutor);
 
 export default router;

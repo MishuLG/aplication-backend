@@ -22,7 +22,7 @@ import newslettersRoutes from './routes/newsletters.routes.js';
 import dashboardRoutes from './routes/dashboard.routes.js';
 import promotionRoutes from './routes/promotion.routes.js'; 
 import bulletinRoutes from './routes/bulletin.routes.js';   
-import gradesRoutes from './routes/grades.routes.js'; // Ruta de Notas
+import gradesRoutes from './routes/grades.routes.js'; 
 
 dotenv.config();
 config();
@@ -37,39 +37,46 @@ app.use(cors({
 
 app.use(express.json()); 
 
-// --- REGISTRO DE RUTAS ESTANDARIZADO ---
+// ==========================================
+// 🚀 REGISTRO DE RUTAS CORREGIDO (NAMESPACING)
+// ==========================================
 
-// Rutas Generales
-app.use('/api', userRoutes);
-app.use('/api', studentRoutes);
-app.use('/api', enrollmentRoutes);
+// Cada módulo tiene su propio prefijo para evitar choques
+app.use('/api', userRoutes);           // Antes: /api -> Ahora: /api/users
+app.use('/api/students', studentRoutes);     // Antes: /api -> Ahora: /api/students
+app.use('/api/enrollments', enrollmentRoutes);
 app.use('/api/auth', authRoutes);
-app.use('/api', tutorRoutes);
-app.use('/api', sectionsRoutes);
-app.use('/api', subjectsRoutes);
-app.use('/api', subjectstakenRoutes);
-
-// CORRECCIÓN: Rutas con Prefijo Específico (Soluciona el 404)
-app.use('/api/school_years', schoolyearRoutes);     // <--- ¡AQUÍ ESTÁ LA SOLUCIÓN!
+app.use('/api/tutors', tutorRoutes);
+app.use('/api/sections', sectionsRoutes);
+app.use('/api/subjects', subjectsRoutes);
+app.use('/api/subjects-taken', subjectstakenRoutes);
+app.use('/api/school_years', schoolyearRoutes);
 app.use('/api/class-schedules', classscheduleRoutes); 
 app.use('/api/attendance', attendanceRoutes);
+app.use('/api/evaluations', evaluationsRoutes);
+app.use('/api/newsletters', newslettersRoutes);
+app.use('/api', dashboardRoutes);  // ¡Ahora Dashboard no chocará!
+app.use('/api/promotions', promotionRoutes); 
+app.use('/api/bulletins', bulletinRoutes);  
+app.use('/api/grades', gradesRoutes); 
 
-// Resto de rutas
-app.use('/api', evaluationsRoutes);
-app.use('/api', newslettersRoutes);
-app.use('/api', dashboardRoutes);
-app.use('/api', promotionRoutes); 
-app.use('/api', bulletinRoutes);  
-app.use('/api', gradesRoutes); 
+// ==========================================
+// 🔥 DEPURADOR DE ERRORES 🔥
+// ==========================================
+app.use((err, req, res, next) => {
+    console.error("🚨 ERROR:", err.message);
+    res.status(500).json({ message: "Error interno del servidor", error: err.message });
+});
 
 // --- CONEXIÓN BASE DE DATOS ---
-sequelize.sync() 
+// Agregamos { alter: true } para que actualice las tablas automáticamente
+sequelize.sync({ alter: true }) 
   .then(() => {
-    console.log("Sequelize connected successfully");
+    console.log("✅ Sequelize conectado, sincronizado y tablas actualizadas.");
     app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
+      console.log(`🚀 Servidor corriendo en el puerto ${PORT}`);
     });
   })
   .catch((error) => {
-    console.error("Database connection failed:", error);
+    console.error("❌ Error fatal al conectar la BD:", error);
   });

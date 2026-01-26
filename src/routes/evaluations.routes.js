@@ -6,13 +6,17 @@ import {
   updateEvaluationById, 
   deleteEvaluationById 
 } from "../controllers/evaluations.controller.js";
+import { authenticateToken } from "../middlewares/authenticate.token.js";
 
 const router = Router();
 
-router.get("/evaluations", getAllEvaluations);
-router.get("/evaluations/:id", getEvaluationById);
-router.post("/evaluations", createEvaluation);
-router.put("/evaluations/:id", updateEvaluationById);
-router.delete("/evaluations/:id", deleteEvaluationById);
+// Protegemos todas las rutas
+router.use(authenticateToken);
+
+router.get("/", getAllEvaluations);
+router.get("/:id", getEvaluationById);
+router.post("/", createEvaluation);
+router.put("/:id", updateEvaluationById);
+router.delete("/:id", deleteEvaluationById);
 
 export default router;

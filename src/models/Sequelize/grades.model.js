@@ -1,6 +1,8 @@
 import { DataTypes } from "sequelize";
 import sequelize from "../../database/sequelize.js";
 
+// ¡IMPORTANTE! NO IMPORTAR: Section, Subject aquí.
+
 const Grade = sequelize.define("Grade", {
   id_grade: {
     type: DataTypes.INTEGER,
@@ -8,17 +10,17 @@ const Grade = sequelize.define("Grade", {
     autoIncrement: true,
   },
   name_grade: {
-    type: DataTypes.STRING,
+    type: DataTypes.STRING, // '1er Grado'
     allowNull: false,
   },
-  // La clave de la automatización: saber cuál sigue
   next_grade_id: {
-    type: DataTypes.INTEGER,
-    allowNull: true, // Es null para 6to grado (porque no hay 7mo en la escuela)
+    type: DataTypes.INTEGER, // Para promoción automática
+    allowNull: true,
   }
 }, {
   tableName: "grades",
-  timestamps: false,
+  timestamps: false, // Según tu estructura original
+  underscored: true,
 });
 
 export default Grade;

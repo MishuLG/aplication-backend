@@ -1,6 +1,8 @@
 import { DataTypes } from "sequelize";
 import sequelize from "../../database/sequelize.js";
 
+// REGLA DE ORO: No importar User ni Student aquí.
+
 const Tutor = sequelize.define("Tutor", {
   id_tutor: {
     type: DataTypes.INTEGER,
@@ -14,7 +16,6 @@ const Tutor = sequelize.define("Tutor", {
   },
   dni: {
     type: DataTypes.STRING(20),
-    // CAMBIO AQUÍ: Lo ponemos en true para que acepte los registros viejos sin DNI
     allowNull: true, 
   },
   profession: {

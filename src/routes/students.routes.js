@@ -3,16 +3,20 @@ import {
     getAllStudents,
     getStudentById,
     createStudent,
-    updateStudentById,
-    deleteStudentById
+    updateStudent, // Asegúrate que tu controlador exporte estos nombres
+    deleteStudent
 } from '../controllers/students.controllers.js';
+import { authenticateToken } from '../middlewares/authenticate.token.js';
 
 const router = Router();
 
-router.get('/students', getAllStudents);
-router.get('/students/:id', getStudentById);
-router.post('/students', createStudent);
-router.put('/students/:id', updateStudentById);
-router.delete('/students/:id', deleteStudentById);
+// Aplicamos seguridad (opcional, recomendado)
+router.use(authenticateToken); 
+
+router.get('/', getAllStudents);      // Antes '/students'
+router.get('/:id', getStudentById);   // Antes '/students/:id'
+router.post('/', createStudent);
+router.put('/:id', updateStudent);
+router.delete('/:id', deleteStudent);
 
 export default router;

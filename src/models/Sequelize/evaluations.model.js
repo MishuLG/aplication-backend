@@ -1,8 +1,7 @@
 import { DataTypes } from "sequelize";
 import sequelize from "../../database/sequelize.js";
-import Student from "./students.model.js";
-import Subject from "./subjects.model.js";
-import ClassSchedule from "./classSchedules.model.js";
+
+// --- YA NO IMPORTAMOS NADA MÁS AQUÍ ---
 
 const Evaluation = sequelize.define(
   "Evaluation",
@@ -15,26 +14,15 @@ const Evaluation = sequelize.define(
     id_student: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      references: {
-        model: Student,
-        key: "id_student",
-      },
+      // 'references' eliminado, se maneja en index.js
     },
     id_subject: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      references: {
-        model: Subject,
-        key: "id_subject",
-      },
     },
     id_class_schedules: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      references: {
-        model: ClassSchedule,
-        key: "id_class_schedules",
-      },
     },
     total_rating: {
       type: DataTypes.NUMERIC,
@@ -65,12 +53,9 @@ const Evaluation = sequelize.define(
     tableName: "evaluations",
     timestamps: true, 
     createdAt: 'created_at', 
-    updatedAt: 'updated_at', 
+    updated_at: 'updated_at', 
+    underscored: true 
   }
 );
-
-Evaluation.belongsTo(Student, { foreignKey: "id_student" });
-Evaluation.belongsTo(Subject, { foreignKey: "id_subject" });
-Evaluation.belongsTo(ClassSchedule, { foreignKey: "id_class_schedules" });
 
 export default Evaluation;
