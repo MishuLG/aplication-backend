@@ -29,8 +29,28 @@ config();
 
 const app = express();
 
-app.use(cors({
+/*app.use(cors({
     origin: 'http://localhost:3000', 
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true,
+}));*/
+
+// Aceptamos localhost (para pruebas) y la variable de entorno FRONTEND_URL (para producción)
+const allowedOrigins = [
+    'http://localhost:3000',
+    process.env.FRONTEND_URL // Aquí pondremos tu link de Vercel más tarde
+];
+
+app.use(cors({
+    origin: function (origin, callback) {
+        // Permitir peticiones sin origen (como Postman) o si el origen está en la lista
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            console.log("Origen bloqueado por CORS:", origin);
+            callback(new Error('No permitido por CORS'));
+        }
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true,
 }));
