@@ -38,6 +38,7 @@ const app = express();
 // Aceptamos localhost (para pruebas) y la variable de entorno FRONTEND_URL (para producción)
 const allowedOrigins = [
     'http://localhost:3000',
+    'https://aplication-frontend-one.vercel.app',
     process.env.FRONTEND_URL // Aquí pondremos tu link de Vercel más tarde
 ];
 
