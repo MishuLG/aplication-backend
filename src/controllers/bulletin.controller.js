@@ -89,7 +89,7 @@ export const generateBulletinPDF = async (req, res) => {
         }
 
         doc.moveDown(1);
-        doc.font('Times-Roman').fontSize(14).text('UNIDAD EDUCATIVA "Francis de Miranda"', { align: 'center', bold: true });
+        doc.font('Times-Roman').fontSize(14).text('UNIDAD EDUCATIVA "Francisco de Miranda"', { align: 'center', bold: true });
         doc.fontSize(12).text('Informe de Rendimiento Académico', { align: 'center' });
         const periodo = section.SchoolYear ? section.SchoolYear.name_period : 'Periodo Actual';
         doc.text(`Año Escolar: ${periodo}`, { align: 'center' });
