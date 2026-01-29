@@ -82,12 +82,18 @@ export const generateBulletinPDF = async (req, res) => {
 
         doc.pipe(res);
 
-        // --- ENCABEZADO ---
-        const logoPath = path.join(__dirname, '../assets/logo.png'); 
+        // --- ENCABEZADO CON LOGO ---
+        // Ajuste: Cambiado a 'icon.png' y posicionado en la esquina superior izquierda
+        const logoPath = path.join(__dirname, '../assets/icon.png'); 
+        
         if (fs.existsSync(logoPath)) {
-            doc.image(logoPath, 72, 50, { width: 60 });
+            // Coordenadas X=50, Y=45 colocan el logo en la esquina superior izquierda
+            doc.image(logoPath, 50, 45, { width: 70 });
+        } else {
+            console.log("Logo no encontrado en:", logoPath);
         }
 
+        // Movemos el texto un poco hacia abajo para que no choque con el logo
         doc.moveDown(1);
         doc.font('Times-Roman').fontSize(14).text('UNIDAD EDUCATIVA "Francisco de Miranda"', { align: 'center', bold: true });
         doc.fontSize(12).text('Informe de Rendimiento Académico', { align: 'center' });
@@ -118,7 +124,7 @@ export const generateBulletinPDF = async (req, res) => {
 
         // --- PIE DE PÁGINA CON EL PROMEDIO CALCULADO ---
         doc.moveDown(2);
-        doc.font('Times-Bold').text(`Promedio General Acumulado: ${calculatedGeneralAvg}`); // ¡AQUÍ ESTÁ LA CORRECCIÓN!
+        doc.font('Times-Bold').text(`Promedio General Acumulado: ${calculatedGeneralAvg}`);
         doc.text(`Situación: ${enrollmentData.status}`);
 
         // Firmas

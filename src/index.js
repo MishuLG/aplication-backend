@@ -3,7 +3,9 @@ import { PORT } from "../config.js";
 import { config } from 'dotenv';
 import dotenv from 'dotenv';
 import cors from 'cors';
-import sequelize from "./database/sequelize.js";  
+import sequelize from "./database/sequelize.js"; 
+import path from 'path'; // IMPORTANTE: Necesario para rutas de archivos
+import { fileURLToPath } from 'url'; // IMPORTANTE: Necesario para __dirname en módulos
 
 // --- IMPORTACIÓN DE RUTAS ---
 import userRoutes from "./routes/users.routes.js";
@@ -26,6 +28,10 @@ import gradesRoutes from './routes/grades.routes.js';
 
 dotenv.config();
 config();
+
+// Definir __dirname para módulos ES6 (necesario para servir estáticos)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -57,6 +63,11 @@ app.use(cors({
 }));
 
 app.use(express.json()); 
+
+// --- SERVIR IMÁGENES ESTÁTICAS (CARRUSEL) ---
+// Esto hace pública la carpeta 'src/public' para que el frontend pueda cargar las fotos
+// Ejemplo: http://localhost:4000/public/carousel/slide-1.jpg
+app.use('/public', express.static(path.join(__dirname, 'public')));
 
 // ==========================================
 // 🚀 REGISTRO DE RUTAS CORREGIDO (NAMESPACING)
